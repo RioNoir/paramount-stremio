@@ -4,11 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="4ff53c36-ac21-44a3-9025-18a65d9def09" name="Changes" comment="Init">
+    <list default="true" id="4ff53c36-ac21-44a3-9025-18a65d9def09" name="Changes" comment="Minor fixes">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/api/auth/device/poll/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/auth/device/poll/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/api/auth/device/start/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/auth/device/start/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/api/stremio/[key]/stream/[type]/[id]/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/stremio/[key]/stream/[type]/[id]/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/api/proxy/playlist/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/proxy/playlist/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/api/proxy/segment/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/proxy/segment/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/api/stremio/[key]/meta/[type]/[id].json/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/stremio/[key]/meta/[type]/[[...id]]/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/api/stremio/[key]/stream/[type]/[id]/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/stremio/[key]/stream/[type]/[[...id]]/route.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -69,7 +70,7 @@
       <option name="presentableId" value="Default" />
       <updated>1724157470541</updated>
       <workItem from="1724157471592" duration="892000" />
-      <workItem from="1766676419986" duration="26906000" />
+      <workItem from="1766676419986" duration="27473000" />
     </task>
     <task id="LOCAL-00001" summary="Init">
       <option name="closed" value="true" />
@@ -79,7 +80,15 @@
       <option name="project" value="LOCAL" />
       <updated>1766705671911</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="Minor fixes">
+      <option name="closed" value="true" />
+      <created>1766706564329</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1766706564329</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -87,6 +96,7 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Init" />
-    <option name="LAST_COMMIT_MESSAGE" value="Init" />
+    <MESSAGE value="Minor fixes" />
+    <option name="LAST_COMMIT_MESSAGE" value="Minor fixes" />
   </component>
 </project>

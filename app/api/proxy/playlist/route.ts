@@ -1,5 +1,5 @@
 import { withCors, optionsCors } from "@/lib/stremio/cors";
-import { getSessionFromKey } from "@/lib/auth/session";
+import { readSessionFromKey } from "@/lib/auth/session";
 
 export function OPTIONS() { return optionsCors(); }
 
@@ -17,7 +17,7 @@ export async function GET(req: Request) {
     const src = url.searchParams.get("u") || "";
     if (!key || !src) return withCors(Response.json({ error: "Missing params" }, { status: 400 }));
 
-    const session = await getSessionFromKey(key);
+    const session = await readSessionFromKey(key);
     if (!session) return withCors(Response.json({ error: "Invalid/expired key" }, { status: 401 }));
 
     const upstream = await fetch(src, {
