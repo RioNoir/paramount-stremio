@@ -17,6 +17,7 @@ export async function POST() {
         deviceToken: start.deviceToken,
     };
 
+    // @ts-ignore
     const pendingToken = await seal(payload);
 
     return withCors(Response.json({

@@ -38,6 +38,7 @@ export async function GET(
     if (!streamData) return NextResponse.json({ streams: [] }, { status: 200 });
 
     // Token per proxy: contiene ls_session + scadenza breve
+    // @ts-ignore
     const proxyToken = await seal({
         kind: "pplus_proxy",
         ls_session: streamData.ls_session,

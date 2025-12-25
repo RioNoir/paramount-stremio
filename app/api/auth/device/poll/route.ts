@@ -10,6 +10,7 @@ const schema = z.object({
 });
 
 export async function POST(req: Request) {
+    const url = new URL(req.url);
     const body = await req.json().catch(() => null);
     const parsed = schema.safeParse(body);
     if (!parsed.success) return withCors(Response.json({ error: "Bad input" }, { status: 400 }));
@@ -51,9 +52,10 @@ export async function POST(req: Request) {
         sessionPayload.profileId = await client.pickProfileId(tmpSession as any);
     } catch {}
 
+    // @ts-ignore
     const key = await seal(sessionPayload);
 
-    const base = process.env.APP_BASE_URL || "http://localhost:3000";
+    const base = url.origin || process.env.APP_BASE_URL || "http://localhost:3000";
     // ✅ KEY nel PATH (non in query) + termina con /manifest.json
     const manifestUrl = `${base}/api/stremio/${encodeURIComponent(key)}/manifest.json`;
 
