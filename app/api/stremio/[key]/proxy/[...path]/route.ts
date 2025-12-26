@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { unseal } from "@/lib/auth/jwe";
 
 export const runtime = "nodejs";
+export const preferredRegion = "iad1";
 
 function isExpired(payload: any) {
     return !payload?.exp || Date.now() > payload.exp;

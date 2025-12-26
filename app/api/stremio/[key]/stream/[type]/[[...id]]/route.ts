@@ -5,6 +5,7 @@ import { resolveSportStream, resolveLinearStream } from "@/lib/paramount/sports"
 import { seal } from "@/lib/auth/jwe";
 
 export const runtime = "nodejs";
+export const preferredRegion = "iad1";
 
 function stripJsonSuffix(s: string) {
     return s.endsWith(".json") ? s.slice(0, -5) : s;
