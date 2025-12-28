@@ -3,6 +3,7 @@ import { readSessionFromKey } from "@/lib/auth/session";
 import { parsePplusId } from "@/lib/paramount/mapping";
 import { resolveSportStream, resolveLinearStream } from "@/lib/paramount/sports";
 import { seal } from "@/lib/auth/jwe";
+import { wrapUrlWithMediaFlow } from "@/lib/mediaflowproxy/mediaflowproxy";
 
 export const runtime = "nodejs";
 export const preferredRegion = "iad1";
@@ -53,13 +54,17 @@ export async function GET(
     proxyUrl.searchParams.set("u", streamData.streamingUrl);
     proxyUrl.searchParams.set("t", proxyToken);
 
+    const internalProxyUrl = proxyUrl.toString();
+    // se MFP è configurato, wrappa, altrimenti usa quello interno
+    const finalUrl = (await wrapUrlWithMediaFlow(internalProxyUrl)) ?? internalProxyUrl;
+
     return NextResponse.json(
         {
             streams: [
                 {
                     name: "Paramount+ Sports",
-                    title: "HLS (proxied)",
-                    url: proxyUrl.toString(),
+                    title: internalProxyUrl == finalUrl ? "HLS (proxied)" : "HLS (MFP proxied)",
+                    url: finalUrl.toString(),
                 },
             ],
         },
