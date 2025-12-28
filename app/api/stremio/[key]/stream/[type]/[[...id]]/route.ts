@@ -48,7 +48,9 @@ export async function GET(
     });
 
     // Proxy playlist endpoint
-    const base = new URL(req.url);
+
+    const url = process.env.APP_BASE_URL || req.url || "http://localhost:3000";
+    const base = new URL(url);
     //const proxyUrl = new URL(`/api/stremio/${encodeURIComponent(key)}/proxy/hls.m3u8`, base.origin);
     const proxyUrl = new URL(`/api/stremio/${encodeURIComponent(key)}/proxy/hls`, base.origin);
     proxyUrl.searchParams.set("u", streamData.streamingUrl);
