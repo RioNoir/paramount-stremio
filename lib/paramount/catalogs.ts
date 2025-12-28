@@ -97,7 +97,7 @@ function mapSportListingToMeta(e: any) {
         name: String(title),
         poster: pickSportsPoster(e),
         logo: logo,
-        posterShape: "poster" as const,
+        posterShape: "landscape" as const,
         description: descParts.join(" • "),
         releaseInfo: fmtUtc(startMs),
     };
@@ -272,7 +272,15 @@ export async function getCatalogMetas(args: {
             return (a.releaseInfo ?? "").localeCompare(b.releaseInfo ?? "");
         });
 
-        let channelMetas: { id: string; type: "tv"; name: string; poster: string | undefined; posterShape: "poster"; description: string; releaseInfo: string | undefined; }[] = [];
+        let channelMetas: Awaited<{
+            releaseInfo: string | undefined;
+            name: string;
+            posterShape: string;
+            description: string;
+            id: string;
+            type: string;
+            poster: string | undefined
+        }>[] = [];
         if (id === "pplus_sports_live") {
             const alwaysLiveChannels = [
                 {slug: "cbssportshq", fallbackName: "CBS Sports HQ"},
@@ -290,7 +298,7 @@ export async function getCatalogMetas(args: {
                         type: "tv" as const,
                         name: full?.name || c.fallbackName,
                         poster: full?.poster,
-                        posterShape: "poster" as const,
+                        posterShape: "landscape" as const,
                         description: full?.description || "LIVE • Linear channel",
                         releaseInfo: full?.releaseInfo,
                     };
