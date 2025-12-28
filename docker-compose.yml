@@ -1,0 +1,12 @@
+services:
+  paramount:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: Paramount
+    environment:
+      - APP_BASE_URL=http://localhost:3002
+      - APP_KEY_SECRET=Q95nuXhBER7J71l4ryBNjX
+    ports:
+      - "3002:3000"
+    restart: unless-stopped

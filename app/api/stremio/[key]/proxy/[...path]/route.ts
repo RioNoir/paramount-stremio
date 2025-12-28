@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { unseal } from "@/lib/auth/jwe";
-import { readSessionFromKey } from "@/lib/auth/session";
+import {NextRequest, NextResponse} from "next/server";
+import {unseal} from "@/lib/auth/jwe";
+import {readSessionFromKey} from "@/lib/auth/session";
+import { keepAliveAgent } from "@/lib/http/agent";
 
 export const runtime = "nodejs";
 export const preferredRegion = "iad1";
@@ -45,7 +46,8 @@ function isParamountDomain(host: string) {
 // - righe URL pure (variant/segment)
 // - URI="..." dentro tag tipo EXT-X-KEY / EXT-X-MAP / EXT-X-MEDIA
 function rewriteM3U8(body: string, req: NextRequest, key: string, token: string, upstreamBase: string) {
-    const origin = new URL(req.url).origin;
+    const url = process.env.APP_BASE_URL || req.url;
+    const origin = new URL(url).origin;
 
     const proxyize = (abs: string) => {
         const prox = new URL(`/api/stremio/${encodeURIComponent(key)}/proxy/hls`, origin);
@@ -54,24 +56,29 @@ function rewriteM3U8(body: string, req: NextRequest, key: string, token: string,
         return prox.toString();
     };
 
+    const toAbs = (maybeUrl: string) => {
+        try {
+            return new URL(maybeUrl, upstreamBase).toString();
+        } catch {
+            return maybeUrl;
+        }
+    };
+
     return body
         .split("\n")
         .map((line) => {
             const trimmed = line.trim();
             if (!trimmed) return line;
 
-            // 1) Riscrivi URI="..."
-            if (trimmed.startsWith("#")) {
-                // sostituisce tutte le occorrenze URI="..."
-                return line.replace(/URI="([^"]+)"/g, (_m, uri) => {
-                    const abs = new URL(uri, upstreamBase).toString();
-                    return `URI="${proxyize(abs)}"`;
-                });
+            // URL “pure” su una riga (segment/variant)
+            if (!trimmed.startsWith("#")) {
+                return proxyize(toAbs(trimmed));
             }
 
-            // 2) Riscrivi righe che sono URL (relative o absolute)
-            const abs = new URL(trimmed, upstreamBase).toString();
-            return proxyize(abs);
+            return line.replace(/URI="([^"]+)"/g, (_m, uri) => {
+                const abs = toAbs(uri);
+                return `URI="${proxyize(abs)}"`;
+            });
         })
         .join("\n");
 }
@@ -95,7 +102,8 @@ async function fetchUpstream(url: string, bearer: string, cookieHeader?: string)
         headers["Referer"] = "https://www.paramountplus.com/";
     }
 
-    return fetch(url, { method: "GET", redirect: "follow", cache: "no-store", headers });
+    // @ts-ignore
+    return fetch(url, {dispatcher: keepAliveAgent, method: "GET", redirect: "follow", cache: "no-store", headers });
 }
 
 export async function GET(req: NextRequest, ctx: { params: Promise<{ key: string; path: string[] }> }) {
@@ -168,7 +176,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ key: string
         headers: {
             "Content-Type": ct,
             "Access-Control-Allow-Origin": "*",
-            "Cache-Control": "no-store",
+            "Cache-Control": "public, max-age=60, s-maxage=60, stale-while-revalidate=30",
         },
     });
 }
