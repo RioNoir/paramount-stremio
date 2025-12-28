@@ -43,6 +43,43 @@ function leagueLabel(e: any): string | undefined {
     return out || undefined;
 }
 
+function pickManifestUrl(tokenResp: any): string | null {
+    // 1) caso “standard”
+    const candidates: (string | undefined)[] = [
+        tokenResp?.streamingUrl,
+        tokenResp?.hls?.url,
+        tokenResp?.hlsUrl,
+        tokenResp?.playback?.hls,
+        tokenResp?.playback?.url,
+        tokenResp?.manifestUrl,
+    ];
+
+    // 2) fallback: cerca qualsiasi stringa che sembri un .m3u8
+    const allStrings: string[] = [];
+    const walk = (obj: any) => {
+        if (!obj) return;
+        if (typeof obj === "string") allStrings.push(obj);
+        else if (Array.isArray(obj)) obj.forEach(walk);
+        else if (typeof obj === "object") Object.values(obj).forEach(walk);
+    };
+    walk(tokenResp);
+
+    const merged = [...candidates.filter(Boolean) as string[], ...allStrings];
+    const m3u8 = merged.find((u) => typeof u === "string" && u.includes(".m3u8"));
+    if (m3u8) return m3u8;
+
+    // 3) se trovi solo “getlicense”, è DRM e non va bene
+    const license = merged.find((u) => typeof u === "string" && u.includes("/widevine/getlicense"));
+    if (license) return null;
+
+    return null;
+}
+
+function isLicenseUrl(u: string) {
+    return u.includes("/widevine/getlicense") || u.toLowerCase().includes("getlicense");
+}
+
+
 export async function findSportListing(session: ParamountSession, listingId: string) {
     const api = new ParamountContentApi();
     const data = await api.sportsLiveUpcoming(session.cookies);
@@ -142,11 +179,7 @@ export async function buildLinearMeta(session: ParamountSession, slug: string): 
     };
 }
 
-export async function resolveSportStream(session: ParamountSession, listingId: string): Promise<{
-    streamingUrl: string;
-    ls_session: string;
-    videoContentId: string;
-} | null> {
+export async function resolveSportStream(session: ParamountSession, listingId: string) {
     const e = await findSportListing(session, listingId);
     if (!e) return null;
 
@@ -154,16 +187,24 @@ export async function resolveSportStream(session: ParamountSession, listingId: s
     if (!videoContentId) return null;
 
     const api = new ParamountContentApi();
-    const data = await api.irdetoSessionToken(session.cookies, String(videoContentId));
+    const tokenResp = await api.irdetoSessionToken(session.cookies, String(videoContentId));
 
-    // EPlusTV richiede streamingUrl + ls_session :contentReference[oaicite:5]{index=5}
-    const streamingUrl = data?.url;
-    const ls_session = data?.ls_session;
+    const streamingUrl = pickManifestUrl(tokenResp);
+    const ls_session = tokenResp?.ls_session;
 
-    if (!streamingUrl || !ls_session) return null;
+    if (!ls_session) return null;
+
+    // Se non trovi un m3u8 ma trovi license, significa che stai ricevendo solo DRM endpoints
+    if (!streamingUrl) {
+        return null;
+    }
+
+    // doppia sicurezza: non permettere mai license URL come streamingUrl
+    if (isLicenseUrl(streamingUrl)) return null;
 
     return { streamingUrl, ls_session, videoContentId: String(videoContentId) };
 }
+
 
 /**
  * STREAM per canale lineare:
@@ -180,10 +221,11 @@ export async function resolveLinearStream(session: ParamountSession, slug: strin
     if (!listing?.videoContentId) return null;
 
     const tokenResp = await api.irdetoSessionToken(session.cookies, String(listing.videoContentId));
-    const streamingUrl = tokenResp?.streamingUrl;
+    const streamingUrl = pickManifestUrl(tokenResp);
     const ls_session = tokenResp?.ls_session;
 
     if (!streamingUrl || !ls_session) return null;
+    if (isLicenseUrl(streamingUrl)) return null;
 
     return { streamingUrl, ls_session, videoContentId: String(listing.videoContentId) };
 }
