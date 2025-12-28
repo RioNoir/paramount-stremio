@@ -21,7 +21,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ key: string }>
         {
             type: "tv",
             id: "pplus_sports_upcoming",
-            name: "Paramount+ Sports (Upcoming)",
+            name: "Paramount+ Sports",
             extra: [{ name: "search" }, { name: "skip" }],
         }
     ];
@@ -30,7 +30,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ key: string }>
         id: "org.paramountplus.us.sports",
         version: "1.0.0",
         name: "Paramount+ Sports (US)",
-        description: "Paramount+ US Sports Addon. Watch all live events from your account.",
+        description: "Unofficial Paramount+ US Sports Addon. Watch all live events from your account.",
+        logo: "https://play-lh.googleusercontent.com/oi4GE8ulxHp4Y2xVzKu_WAMrgE4Jj4Kbdd7hAWLeoZTsMtC5bYTd2xcYhlvMk69pTFY",
+        background: "https://static0.howtogeekimages.com/wordpress/wp-content/uploads/2023/08/paramount-1.jpg?w=1600&h=900&fit=crop",
         resources: ["catalog", "meta", "stream"],
         types: ["tv"],
         idPrefixes: ["pplus:"],

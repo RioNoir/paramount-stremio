@@ -256,7 +256,8 @@ export async function getCatalogMetas(args: {
                 return false;
             } else {
                 // UPCOMING: non live e start nel futuro
-                return !isLive && startMs > now;
+                //return !isLive && startMs > now;
+                return true;
             }
         });
 
