@@ -50,46 +50,96 @@ function isParamountDomain(host: string) {
     );
 }
 
-function reorderMasterHighFirst(masterText: string, minBw?: number): string {
-    const lines = masterText.split("\n");
+type Variant = {
+    info: string;
+    url: string;
+    bw: number;
+    w: number;
+    h: number;
+    audioGroup?: string;
+};
 
+function parseResolution(infoLine: string): { w: number; h: number } {
+    const m = infoLine.match(/RESOLUTION=(\d+)x(\d+)/);
+    if (!m) return { w: 0, h: 0 };
+    return { w: Number(m[1]), h: Number(m[2]) };
+}
+
+function parseBandwidth(infoLine: string): number {
+    const m = infoLine.match(/BANDWIDTH=(\d+)/);
+    return m ? Number(m[1]) : 0;
+}
+
+function parseAudioGroup(infoLine: string): string | undefined {
+    const m = infoLine.match(/AUDIO="([^"]+)"/);
+    return m?.[1];
+}
+
+function parseMaster(masterText: string): { head: string[]; variants: Variant[] } {
+    const lines = masterText.split("\n");
     const head: string[] = [];
-    const variants: { info: string; url: string; bw: number }[] = [];
+    const variants: Variant[] = [];
 
     for (let i = 0; i < lines.length; i++) {
         const l = lines[i];
-
         if (l.trim().startsWith("#EXT-X-STREAM-INF")) {
-            const bwMatch = l.match(/BANDWIDTH=(\d+)/);
-            const bw = bwMatch ? Number(bwMatch[1]) : 0;
             const url = (lines[i + 1] || "").trim();
-            variants.push({ info: l, url, bw });
-            i++; // salta riga URL
+            const { w, h } = parseResolution(l);
+            variants.push({
+                info: l,
+                url,
+                bw: parseBandwidth(l),
+                w,
+                h,
+                audioGroup: parseAudioGroup(l),
+            });
+            i++;
             continue;
         }
-
-        // tutto il resto (EXT-X-MEDIA, EXT-X-SESSION-KEY, ecc.) resta invariato
         head.push(l);
     }
+    return { head, variants };
+}
 
-    if (variants.length <= 1) return masterText;
+function rebuildMaster(head: string[], variants: Variant[]): string {
+    const out: string[] = [...head];
+    for (const v of variants) {
+        out.push(v.info);
+        out.push(v.url);
+    }
+    return out.join("\n");
+}
 
-    // (opzionale) filtra le più basse solo su DAI
-    const filtered = typeof minBw === "number" ? variants.filter(v => v.bw >= minBw) : variants;
+function selectTarget1080Variants(masterText: string): string {
+    const target = (process.env.APP_HLS_TARGET_RES || "1920x1080").toLowerCase();
+    const fallback = (process.env.APP_HLS_FALLBACK_TO_HIGHEST || "true").toLowerCase() === "true";
 
-    // se filtri troppo e restano 0, fallback alle originali
-    const use = filtered.length ? filtered : variants;
+    const [tw, th] = target.split("x").map((n) => Number(n));
+    const { head, variants } = parseMaster(masterText);
 
-    // ordina per bandwidth decrescente -> alta per prima
-    use.sort((a, b) => b.bw - a.bw);
+    if (variants.length === 0) return masterText;
 
-    const rebuilt: string[] = [];
-    for (const v of use) {
-        rebuilt.push(v.info);
-        rebuilt.push(v.url);
+    // 1) match esatto 1920x1080
+    let chosen = variants.filter((v) => v.w === tw && v.h === th);
+
+    // 2) migliore <= 1080p
+    if (chosen.length === 0) {
+        const candidates = variants
+            .filter((v) => v.h > 0 && v.h <= th)
+            .sort((a, b) => b.h - a.h || b.bw - a.bw);
+
+        if (candidates.length) chosen = [candidates[0]];
     }
 
-    return [...head, ...rebuilt].join("\n");
+    // 3) fallback: più alta disponibile
+    if (chosen.length === 0 && fallback) {
+        const best = [...variants].sort((a, b) => b.h - a.h || b.bw - a.bw);
+        chosen = [best[0]];
+    }
+
+    if (chosen.length === 0) return masterText;
+
+    return rebuildMaster(head, chosen);
 }
 
 // Riscrive:
@@ -214,19 +264,11 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ key: string
     if (treatAsPlaylist || isLikelyText(res)) {
         let text = await res.text();
 
-        let mode = (process.env.APP_HLS_QUALITY || "auto").toLowerCase();
-
-        // ✅ regola richiesta: se upstream è DAI, ignora "highest"
-        if (isDAI(u)) {
-            mode = "auto"; // o "master_high_first" se vuoi solo riordino non aggressivo
-        }
-
+        const mode = (process.env.APP_HLS_QUALITY || "auto").toLowerCase();
         const isMaster = text.includes("#EXT-X-STREAM-INF");
 
         if (isMaster && mode === "highest") {
-            const minBw = isDAI(u) ? Number(process.env.DAI_MIN_BW ?? "1500000") : undefined;
-            // ✅ NON fetchare la variant direttamente: riordina il master
-            text = reorderMasterHighFirst(text, minBw);
+            text = selectTarget1080Variants(text);
         }
 
         const upstreamBase = new URL(u).toString();
