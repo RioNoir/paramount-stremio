@@ -27,6 +27,14 @@ function isM3U8(url: string) {
     }
 }
 
+function isDAI(url: string) {
+    try {
+        return new URL(url).hostname.toLowerCase().includes("dai.google.com");
+    } catch {
+        return url.includes("dai.google.com");
+    }
+}
+
 function isLikelyText(res: Response) {
     const ct = (res.headers.get("content-type") || "").toLowerCase();
     return ct.includes("application/vnd.apple.mpegurl") || ct.includes("application/x-mpegurl") || ct.includes("text/");
@@ -159,7 +167,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ key: string
     // (manteniamo compatibilità con i tuoi link: /proxy/hls.m3u8 e /proxy/seg se li hai già)
     const mode = path?.[0] ?? "";
 
-    const u = req.nextUrl.searchParams.get("u");
+    const u = req.nextUrl.searchParams.get("u") || "";
     const t = req.nextUrl.searchParams.get("t");
     if (!u || !t) return new NextResponse("Missing u/t", { status: 400 });
 
@@ -186,7 +194,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ key: string
 
     const treatAsPlaylist = forcePlaylist || (!forceSegment && isM3U8(u));
 
-    const res = await fetchUpstream(u, bearer, cookieHeader);
+    const res = await fetchUpstream(u, bearer, cookieHeader, req);
 
     if (!res.ok) {
         const text = await res.text().catch(() => "");
@@ -200,7 +208,12 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ key: string
     if (treatAsPlaylist || isLikelyText(res)) {
         let text = await res.text();
 
-        const mode = (process.env.APP_HLS_QUALITY || "auto").toLowerCase();
+        let mode = (process.env.APP_HLS_QUALITY || "auto").toLowerCase();
+
+        // ✅ regola richiesta: se upstream è DAI, ignora "highest"
+        if (isDAI(u)) {
+            mode = "auto"; // o "master_high_first" se vuoi solo riordino non aggressivo
+        }
 
         const isMaster = text.includes("#EXT-X-STREAM-INF");
 
