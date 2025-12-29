@@ -30,8 +30,7 @@ export async function wrapUrlWithMediaFlow(destinationUrl: string): Promise<stri
     const cfg = getMediaFlowConfig();
     if (!cfg) return null;
 
-    //return `${cfg.url}/proxy/stream?api_password=${cfg.password}&d=${encodeURIComponent(destinationUrl)}`;
-    return `${cfg.url}/proxy/hls/manifest.m3u8?api_password=${cfg.password}&d=${encodeURIComponent(destinationUrl)}&force_playlist_proxy=true&max_res=true`;
+    return `${cfg.url}/proxy/stream?api_password=${cfg.password}&d=${encodeURIComponent(destinationUrl)}`;
 
     // try {
     //     const endpoint = "/proxy/stream"; // MFP proxy “generico” per URL HTTP(S)
