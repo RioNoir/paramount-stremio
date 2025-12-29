@@ -42,6 +42,46 @@ function isParamountDomain(host: string) {
     );
 }
 
+function reorderMasterPlaylist(body: string): string {
+    const lines = body.split("\n");
+
+    const variants: { info: string; url: string; bw: number }[] = [];
+    const out: string[] = [];
+
+    for (let i = 0; i < lines.length; i++) {
+        const l = lines[i];
+        if (l.startsWith("#EXT-X-STREAM-INF")) {
+            const bwMatch = l.match(/BANDWIDTH=(\d+)/);
+            const bw = bwMatch ? Number(bwMatch[1]) : 0;
+            const url = lines[i + 1];
+            variants.push({ info: l, url, bw });
+            i++; // skip url
+        } else {
+            out.push(l);
+        }
+    }
+
+    if (variants.length < 2) return body;
+
+    // ordina per bandwidth crescente
+    variants.sort((a, b) => a.bw - b.bw);
+
+    // scegliamo una qualità iniziale “media”
+    const startIndex = Math.floor(variants.length / 2);
+    const reordered = [
+        ...variants.slice(startIndex),
+        ...variants.slice(0, startIndex),
+    ];
+
+    const rebuilt: string[] = [];
+    for (const v of reordered) {
+        rebuilt.push(v.info);
+        rebuilt.push(v.url);
+    }
+
+    return [...out, ...rebuilt].join("\n");
+}
+
 // Riscrive:
 // - righe URL pure (variant/segment)
 // - URI="..." dentro tag tipo EXT-X-KEY / EXT-X-MAP / EXT-X-MEDIA
@@ -153,7 +193,13 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ key: string
 
     // ✅ Playlist: riscrivi sempre
     if (treatAsPlaylist || isLikelyText(res)) {
-        const text = await res.text();
+        let text = await res.text();
+
+        // se è un master (contiene EXT-X-STREAM-INF)
+        if (text.includes("#EXT-X-STREAM-INF")) {
+            text = reorderMasterPlaylist(text);
+        }
+
         const upstreamBase = new URL(u).toString();
         const rewritten = rewriteM3U8(text, req, key, t, upstreamBase);
 
