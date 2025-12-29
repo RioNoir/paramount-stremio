@@ -50,7 +50,7 @@ function isParamountDomain(host: string) {
     );
 }
 
-function reorderMasterHighFirst(masterText: string): string {
+function reorderMasterHighFirst(masterText: string, minBw?: number): string {
     const lines = masterText.split("\n");
 
     const head: string[] = [];
@@ -74,11 +74,17 @@ function reorderMasterHighFirst(masterText: string): string {
 
     if (variants.length <= 1) return masterText;
 
+    // (opzionale) filtra le più basse solo su DAI
+    const filtered = typeof minBw === "number" ? variants.filter(v => v.bw >= minBw) : variants;
+
+    // se filtri troppo e restano 0, fallback alle originali
+    const use = filtered.length ? filtered : variants;
+
     // ordina per bandwidth decrescente -> alta per prima
-    variants.sort((a, b) => b.bw - a.bw);
+    use.sort((a, b) => b.bw - a.bw);
 
     const rebuilt: string[] = [];
-    for (const v of variants) {
+    for (const v of use) {
         rebuilt.push(v.info);
         rebuilt.push(v.url);
     }
@@ -218,8 +224,9 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ key: string
         const isMaster = text.includes("#EXT-X-STREAM-INF");
 
         if (isMaster && mode === "highest") {
+            const minBw = isDAI(u) ? Number(process.env.DAI_MIN_BW ?? "1500000") : undefined;
             // ✅ NON fetchare la variant direttamente: riordina il master
-            text = reorderMasterHighFirst(text);
+            text = reorderMasterHighFirst(text, minBw);
         }
 
         const upstreamBase = new URL(u).toString();
