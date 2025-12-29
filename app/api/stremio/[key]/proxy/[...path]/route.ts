@@ -82,6 +82,25 @@ function reorderMasterPlaylist(body: string): string {
     return [...out, ...rebuilt].join("\n");
 }
 
+function parseMasterVariants(masterText: string) {
+    const lines = masterText.split("\n");
+    const variants: { bw: number; url: string }[] = [];
+
+    for (let i = 0; i < lines.length; i++) {
+        const l = lines[i]?.trim();
+        if (l?.startsWith("#EXT-X-STREAM-INF")) {
+            const bwMatch = l.match(/BANDWIDTH=(\d+)/);
+            const bw = bwMatch ? Number(bwMatch[1]) : 0;
+            const url = (lines[i + 1] || "").trim();
+            if (url && !url.startsWith("#")) variants.push({ bw, url });
+            i++; // skip url line
+        }
+    }
+
+    variants.sort((a, b) => b.bw - a.bw); // desc
+    return variants;
+}
+
 // Riscrive:
 // - righe URL pure (variant/segment)
 // - URI="..." dentro tag tipo EXT-X-KEY / EXT-X-MAP / EXT-X-MEDIA
@@ -123,7 +142,7 @@ function rewriteM3U8(body: string, req: NextRequest, key: string, token: string,
         .join("\n");
 }
 
-async function fetchUpstream(url: string, bearer: string, cookieHeader?: string) {
+async function fetchUpstream(url: string, bearer: string, cookieHeader?: string, req?: NextRequest) {
     const u = new URL(url);
     const headers: Record<string, string> = {
         "User-Agent":
@@ -131,6 +150,15 @@ async function fetchUpstream(url: string, bearer: string, cookieHeader?: string)
         Accept: "*/*",
         "Accept-Language": "en-US,en;q=0.9",
     };
+
+    const range = req?.headers.get("range");
+    if (range) headers["Range"] = range;
+
+    const inm = req?.headers.get("if-none-match");
+    if (inm) headers["If-None-Match"] = inm;
+
+    const ims = req?.headers.get("if-modified-since");
+    if (ims) headers["If-Modified-Since"] = ims;
 
     // ✅ IMPORTANTISSIMO:
     // Mandiamo Authorization/Cookie SOLO ai domini Paramount/Irdeto.
@@ -154,7 +182,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ key: string
     // (manteniamo compatibilità con i tuoi link: /proxy/hls.m3u8 e /proxy/seg se li hai già)
     const mode = path?.[0] ?? "";
 
-    const u = req.nextUrl.searchParams.get("u");
+    let u = req.nextUrl.searchParams.get("u");
     const t = req.nextUrl.searchParams.get("t");
     if (!u || !t) return new NextResponse("Missing u/t", { status: 400 });
 
@@ -195,9 +223,51 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ key: string
     if (treatAsPlaylist || isLikelyText(res)) {
         let text = await res.text();
 
-        // se è un master (contiene EXT-X-STREAM-INF)
-        if (text.includes("#EXT-X-STREAM-INF")) {
-            text = reorderMasterPlaylist(text);
+        const mode = (process.env.APP_HLS_QUALITY || "auto").toLowerCase();
+
+        const isMaster = text.includes("#EXT-X-STREAM-INF");
+
+        if (isMaster && mode === "highest") {
+            const vars = parseMasterVariants(text);
+            if (vars.length > 0) {
+                // scegli la più alta e fetchala subito
+                const upstreamBase = new URL(u).toString();
+                const highestAbs = new URL(vars[0].url, upstreamBase).toString();
+
+                const res2 = await fetchUpstream(highestAbs, bearer, cookieHeader);
+                if (res2.ok) {
+                    // ora text diventa la playlist della qualità più alta
+                    text = await res2.text();
+                    // IMPORTANTISSIMO: aggiorna base per riscrittura corretta
+                    u = highestAbs; // se u è const, usa una variabile tipo upstreamUrl
+                }
+            }
+        } else if (isMaster && mode === "master_high_first") {
+            // riordina semplicemente: variant più alta per prima
+            const lines = text.split("\n");
+            const head: string[] = [];
+            const variants: { info: string; url: string; bw: number }[] = [];
+
+            for (let i = 0; i < lines.length; i++) {
+                const l = lines[i];
+                if (l.startsWith("#EXT-X-STREAM-INF")) {
+                    const bwMatch = l.match(/BANDWIDTH=(\d+)/);
+                    const bw = bwMatch ? Number(bwMatch[1]) : 0;
+                    const url = lines[i + 1];
+                    variants.push({ info: l, url, bw });
+                    i++;
+                } else {
+                    head.push(l);
+                }
+            }
+
+            variants.sort((a, b) => b.bw - a.bw);
+            const rebuilt: string[] = [];
+            for (const v of variants) {
+                rebuilt.push(v.info);
+                rebuilt.push(v.url);
+            }
+            text = [...head, ...rebuilt].join("\n");
         }
 
         const upstreamBase = new URL(u).toString();
@@ -215,14 +285,22 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ key: string
 
     // Segment / init / key data (binario)
     const buf = await res.arrayBuffer();
-    const ct = res.headers.get("content-type") || "application/octet-stream";
+    //const ct = res.headers.get("content-type") || "application/octet-stream";
+    const passthrough = ["content-type","content-range","accept-ranges","etag","last-modified","cache-control"];
+    const respHeaders = new Headers({ "Access-Control-Allow-Origin": "*", "Cache-Control": "public, max-age=30, s-maxage=30, stale-while-revalidate=30" });
+
+    for (const h of passthrough) {
+        const v = res.headers.get(h);
+        if (v) respHeaders.set(h, v);
+    }
 
     return new NextResponse(buf, {
-        status: 200,
-        headers: {
-            "Content-Type": ct,
-            "Access-Control-Allow-Origin": "*",
-            "Cache-Control": "public, max-age=60, s-maxage=60, stale-while-revalidate=30",
-        },
+        status: res.status,
+        headers: respHeaders
+        // headers: {
+        //     "Content-Type": ct,
+        //     "Access-Control-Allow-Origin": "*",
+        //     "Cache-Control": "public, max-age=60, s-maxage=60, stale-while-revalidate=30",
+        // },
     });
 }
