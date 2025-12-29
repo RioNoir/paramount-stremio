@@ -84,6 +84,7 @@ export async function buildMfpHlsUrl(params: {
     // - su DAI (dai.google.com) NON mandare Authorization/Cookie
     // - su Paramount/Irdeto sì
     const query_params: Record<string, string> = {
+        api_password: password,
         d: params.upstreamHlsUrl,
         // header generici utili
         "h_user-agent":
@@ -103,31 +104,35 @@ export async function buildMfpHlsUrl(params: {
         query_params["h_referer"] = "https://www.paramountplus.com/";
     }
 
-    const payload: any = {
-        mediaflow_proxy_url: base,
-        endpoint,
-        query_params,
-        expiration,
-        api_password: password, // root-level -> encrypted :contentReference[oaicite:5]{index=5}
-    };
+    const query = new URLSearchParams(query_params);
+    const queryString = query.toString();
+    return `${base}${endpoint}?${queryString}`;
 
-    // filename: docs dicono che è solo per /proxy/stream, quindi NON usarlo qui. :contentReference[oaicite:6]{index=6}
-
-    try {
-        const res = await fetch(`${base}/generate_url`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            cache: "no-store",
-            body: JSON.stringify(payload),
-        });
-
-        if (!res.ok) return null;
-
-        const data = (await res.json()) as { url?: string };
-        return data?.url ?? null;
-    } catch {
-        return null;
-    }
+    // const payload: any = {
+    //     mediaflow_proxy_url: base,
+    //     endpoint,
+    //     query_params,
+    //     expiration,
+    //     api_password: password, // root-level -> encrypted :contentReference[oaicite:5]{index=5}
+    // };
+    //
+    // // filename: docs dicono che è solo per /proxy/stream, quindi NON usarlo qui. :contentReference[oaicite:6]{index=6}
+    //
+    // try {
+    //     const res = await fetch(`${base}/generate_url`, {
+    //         method: "POST",
+    //         headers: { "Content-Type": "application/json" },
+    //         cache: "no-store",
+    //         body: JSON.stringify(payload),
+    //     });
+    //
+    //     if (!res.ok) return null;
+    //
+    //     const data = (await res.json()) as { url?: string };
+    //     return data?.url ?? null;
+    // } catch {
+    //     return null;
+    // }
 }
 
 
