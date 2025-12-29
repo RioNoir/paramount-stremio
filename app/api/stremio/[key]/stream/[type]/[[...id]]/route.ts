@@ -65,6 +65,7 @@ export async function GET(
 
     // fallback: se mfp non configurato o fallisce, usa il tuo proxy interno (come safety)
     if (!finalUrl) {
+        const origin = new URL(req.url).origin;
         const internal = new URL(`/api/stremio/${encodeURIComponent(key)}/proxy/hls`, origin);
         internal.searchParams.set("u", streamData.streamingUrl);
         internal.searchParams.set("t", proxyToken);
