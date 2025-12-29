@@ -42,63 +42,40 @@ function isParamountDomain(host: string) {
     );
 }
 
-function reorderMasterPlaylist(body: string): string {
-    const lines = body.split("\n");
+function reorderMasterHighFirst(masterText: string): string {
+    const lines = masterText.split("\n");
 
+    const head: string[] = [];
     const variants: { info: string; url: string; bw: number }[] = [];
-    const out: string[] = [];
 
     for (let i = 0; i < lines.length; i++) {
         const l = lines[i];
-        if (l.startsWith("#EXT-X-STREAM-INF")) {
+
+        if (l.trim().startsWith("#EXT-X-STREAM-INF")) {
             const bwMatch = l.match(/BANDWIDTH=(\d+)/);
             const bw = bwMatch ? Number(bwMatch[1]) : 0;
-            const url = lines[i + 1];
+            const url = (lines[i + 1] || "").trim();
             variants.push({ info: l, url, bw });
-            i++; // skip url
-        } else {
-            out.push(l);
+            i++; // salta riga URL
+            continue;
         }
+
+        // tutto il resto (EXT-X-MEDIA, EXT-X-SESSION-KEY, ecc.) resta invariato
+        head.push(l);
     }
 
-    if (variants.length < 2) return body;
+    if (variants.length <= 1) return masterText;
 
-    // ordina per bandwidth crescente
-    variants.sort((a, b) => a.bw - b.bw);
-
-    // scegliamo una qualità iniziale “media”
-    const startIndex = Math.floor(variants.length / 2);
-    const reordered = [
-        ...variants.slice(startIndex),
-        ...variants.slice(0, startIndex),
-    ];
+    // ordina per bandwidth decrescente -> alta per prima
+    variants.sort((a, b) => b.bw - a.bw);
 
     const rebuilt: string[] = [];
-    for (const v of reordered) {
+    for (const v of variants) {
         rebuilt.push(v.info);
         rebuilt.push(v.url);
     }
 
-    return [...out, ...rebuilt].join("\n");
-}
-
-function parseMasterVariants(masterText: string) {
-    const lines = masterText.split("\n");
-    const variants: { bw: number; url: string }[] = [];
-
-    for (let i = 0; i < lines.length; i++) {
-        const l = lines[i]?.trim();
-        if (l?.startsWith("#EXT-X-STREAM-INF")) {
-            const bwMatch = l.match(/BANDWIDTH=(\d+)/);
-            const bw = bwMatch ? Number(bwMatch[1]) : 0;
-            const url = (lines[i + 1] || "").trim();
-            if (url && !url.startsWith("#")) variants.push({ bw, url });
-            i++; // skip url line
-        }
-    }
-
-    variants.sort((a, b) => b.bw - a.bw); // desc
-    return variants;
+    return [...head, ...rebuilt].join("\n");
 }
 
 // Riscrive:
@@ -182,7 +159,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ key: string
     // (manteniamo compatibilità con i tuoi link: /proxy/hls.m3u8 e /proxy/seg se li hai già)
     const mode = path?.[0] ?? "";
 
-    let u = req.nextUrl.searchParams.get("u");
+    const u = req.nextUrl.searchParams.get("u");
     const t = req.nextUrl.searchParams.get("t");
     if (!u || !t) return new NextResponse("Missing u/t", { status: 400 });
 
@@ -228,46 +205,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ key: string
         const isMaster = text.includes("#EXT-X-STREAM-INF");
 
         if (isMaster && mode === "highest") {
-            const vars = parseMasterVariants(text);
-            if (vars.length > 0) {
-                // scegli la più alta e fetchala subito
-                const upstreamBase = new URL(u).toString();
-                const highestAbs = new URL(vars[0].url, upstreamBase).toString();
-
-                const res2 = await fetchUpstream(highestAbs, bearer, cookieHeader);
-                if (res2.ok) {
-                    // ora text diventa la playlist della qualità più alta
-                    text = await res2.text();
-                    // IMPORTANTISSIMO: aggiorna base per riscrittura corretta
-                    u = highestAbs; // se u è const, usa una variabile tipo upstreamUrl
-                }
-            }
-        } else if (isMaster && mode === "master_high_first") {
-            // riordina semplicemente: variant più alta per prima
-            const lines = text.split("\n");
-            const head: string[] = [];
-            const variants: { info: string; url: string; bw: number }[] = [];
-
-            for (let i = 0; i < lines.length; i++) {
-                const l = lines[i];
-                if (l.startsWith("#EXT-X-STREAM-INF")) {
-                    const bwMatch = l.match(/BANDWIDTH=(\d+)/);
-                    const bw = bwMatch ? Number(bwMatch[1]) : 0;
-                    const url = lines[i + 1];
-                    variants.push({ info: l, url, bw });
-                    i++;
-                } else {
-                    head.push(l);
-                }
-            }
-
-            variants.sort((a, b) => b.bw - a.bw);
-            const rebuilt: string[] = [];
-            for (const v of variants) {
-                rebuilt.push(v.info);
-                rebuilt.push(v.url);
-            }
-            text = [...head, ...rebuilt].join("\n");
+            // ✅ NON fetchare la variant direttamente: riordina il master
+            text = reorderMasterHighFirst(text);
         }
 
         const upstreamBase = new URL(u).toString();
