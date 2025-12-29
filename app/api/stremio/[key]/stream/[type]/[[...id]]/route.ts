@@ -3,7 +3,7 @@ import { readSessionFromKey } from "@/lib/auth/session";
 import { parsePplusId } from "@/lib/paramount/mapping";
 import { resolveSportStream, resolveLinearStream } from "@/lib/paramount/sports";
 import { seal } from "@/lib/auth/jwe";
-import { wrapUrlWithMediaFlow } from "@/lib/mediaflowproxy/mediaflowproxy";
+import { buildMfpHlsUrl, getProxyMode, wrapUrlWithMediaFlow } from "@/lib/mediaflowproxy/mediaflowproxy";
 
 export const runtime = "nodejs";
 export const preferredRegion = "iad1";
@@ -49,24 +49,39 @@ export async function GET(
 
     // Proxy playlist endpoint
 
-    const url = process.env.APP_BASE_URL || req.url || "http://localhost:3000";
-    const base = new URL(url);
-    //const proxyUrl = new URL(`/api/stremio/${encodeURIComponent(key)}/proxy/hls.m3u8`, base.origin);
-    const proxyUrl = new URL(`/api/stremio/${encodeURIComponent(key)}/proxy/hls`, base.origin);
-    proxyUrl.searchParams.set("u", streamData.streamingUrl);
-    proxyUrl.searchParams.set("t", proxyToken);
+    const mode = getProxyMode();
 
-    const internalProxyUrl = proxyUrl.toString();
-    // se MFP è configurato, wrappa, altrimenti usa quello interno
-    const finalUrl = (await wrapUrlWithMediaFlow(internalProxyUrl)) ?? internalProxyUrl;
+    let isProxedFromMFP = false;
+    let finalUrl: string | null = null;
+
+    if (mode === "mfp_full") {
+        isProxedFromMFP = true;
+        finalUrl = await buildMfpHlsUrl({
+            upstreamHlsUrl: streamData.streamingUrl,
+            lsSession: streamData.ls_session,
+            cookies: session.cookies,
+        });
+    }
+
+    // fallback: se mfp non configurato o fallisce, usa il tuo proxy interno (come safety)
+    if (!finalUrl) {
+        const internal = new URL(`/api/stremio/${encodeURIComponent(key)}/proxy/hls`, origin);
+        internal.searchParams.set("u", streamData.streamingUrl);
+        internal.searchParams.set("t", proxyToken);
+        finalUrl = internal.toString();
+
+        if(mode == "mfp_wrap"){
+            finalUrl = wrapUrlWithMediaFlow(finalUrl);
+        }
+    }
 
     return NextResponse.json(
         {
             streams: [
                 {
                     name: "Paramount+ Sports",
-                    title: internalProxyUrl == finalUrl ? "HLS (proxied)" : "HLS (MFP proxied)",
-                    url: finalUrl.toString(),
+                    title: !isProxedFromMFP ? "HLS (proxied)" : "HLS (MFP proxied)",
+                    url: finalUrl,
                 },
             ],
         },
