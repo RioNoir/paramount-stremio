@@ -44,6 +44,8 @@ function leagueLabel(e: any): string | undefined {
 }
 
 function pickManifestUrl(tokenResp: any): string | null {
+
+    console.log(tokenResp);
     // 1) caso “standard”
     const candidates: (string | undefined)[] = [
         tokenResp?.streamingUrl,

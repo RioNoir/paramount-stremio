@@ -12,8 +12,8 @@ function to32BytesKey(secret: string): Uint8Array {
 }
 
 async function getKeyBytes(): Promise<Uint8Array> {
-    const secret = process.env.APP_KEY_SECRET;
-    if (!secret) throw new Error("Missing APP_KEY_SECRET");
+    const secret = process.env.KEY_SECRET;
+    if (!secret) throw new Error("Missing KEY_SECRET");
     return await to32BytesKey(secret);
 }
 

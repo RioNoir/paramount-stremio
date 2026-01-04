@@ -51,7 +51,7 @@ function isDAI(url: string) {
 
 export function getMediaFlowConfig(): MediaFlowConfig | null {
     const url = process.env.MFP_URL;
-    const password = process.env.MFP_PASSWORD;
+    const password = process.env.MFP_PASS;
     if (!url || !password) return null;
 
     return {
@@ -136,9 +136,42 @@ export async function buildMfpHlsUrl(params: {
 }
 
 
-export function wrapUrlWithMediaFlow(destinationUrl: string): string | null {
+export function wrapUrlWithMediaFlow(destinationUrl: URL, session: any, ls_session: string): string | null {
     const cfg = getMediaFlowConfig();
     if (!cfg) return null;
 
-    return `${cfg.url}/proxy/stream?api_password=${cfg.password}&d=${encodeURIComponent(destinationUrl)}`;
+    //return `${cfg.url}/proxy/stream?api_password=${cfg.password}&d=${encodeURIComponent(destinationUrl)}`;
+
+    // 1. Costruiamo l'oggetto headers esattamente come nel tuo codice
+    const headers: Record<string, string> = {
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
+        "origin": "https://www.paramountplus.com",
+        "referer": "https://www.paramountplus.com/",
+        //"accept": "*/*"
+    };
+
+    // Aggiunta dinamica di Auth e Cookie
+    headers["authorization"] = `Bearer ${ls_session}`;
+    const cookie = buildCookieHeader(session.cookies);
+    if (cookie) headers["set-cookie"] = cookie;
+
+    // 2. Codifichiamo l'URL originale in Base64 (URL-Safe)
+    const encodedUrl = Buffer.from(destinationUrl.toString()).toString('base64url');
+
+    // 3. Codifichiamo gli HEADERS in Base64 (URL-Safe)
+    //const encodedHeaders = Buffer.from(JSON.stringify(headers)).toString('base64url');
+
+    // 4. Costruiamo l'URL finale per Mediaflow
+    //const finalUrl = new URL(`${cfg.url}/proxy/hls/manifest.m3u8`);
+    const finalUrl = new URL(`${cfg.url}/proxy/stream`);
+    finalUrl.searchParams.set("api_password", cfg.password);
+    finalUrl.searchParams.set("d", encodedUrl);
+    //finalUrl.searchParams.set("h", encodedHeaders); // Passiamo qui i tuoi headers!
+    Object.entries(headers).forEach(([key, value]) => {
+        //console.log(`Header: ${key}, Valore: ${value}`);
+        // Qui puoi manipolarli, ad esempio per aggiungerli a un URLSearchParams
+        finalUrl.searchParams.set(`h_${key}`, value); // Passiamo qui i tuoi headers!
+    });
+
+    return finalUrl.toString();
 }

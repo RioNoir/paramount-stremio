@@ -47,46 +47,57 @@ export async function GET(
         exp: Date.now() + 120 * 60 * 1000, // 30 min
     });
 
+    const lsSession = streamData.ls_session;
+    const streamingUrl = new URL(streamData.streamingUrl);
+    const streams = [];
+
     // Proxy playlist endpoint
-
-    const mode = getProxyMode();
-
-    let isProxedFromMFP = false;
-    let finalUrl: string | null = null;
-
-    if (mode === "mfp_full") {
-        isProxedFromMFP = true;
-        finalUrl = await buildMfpHlsUrl({
-            upstreamHlsUrl: streamData.streamingUrl,
-            lsSession: streamData.ls_session,
-            cookies: session.cookies,
-        });
-    }
-
-    // fallback: se mfp non configurato o fallisce, usa il tuo proxy interno (come safety)
-    if (!finalUrl) {
-        const url = process.env.APP_BASE_URL || req.url || "http://localhost:3000";
+    if(streamingUrl) {
+        const url = process.env.BASE_URL || req.url || "http://localhost:3000";
         const base = new URL(url);
-        const internal = new URL(`/api/stremio/${encodeURIComponent(key)}/proxy/hls`, base.origin);
-        internal.searchParams.set("u", streamData.streamingUrl);
-        internal.searchParams.set("t", proxyToken);
-        finalUrl = internal.toString();
 
-        if(mode == "mfp_wrap"){
-            finalUrl = wrapUrlWithMediaFlow(finalUrl);
+        const streamlink = new URL(`/api/stremio/${encodeURIComponent(key)}/proxy/stream`, base.origin);
+        streamlink.searchParams.set("u", Buffer.from(streamingUrl.toString()).toString('base64url'));
+        streamlink.searchParams.set("t", proxyToken);
+
+        if (streamlink) {
+            console.log("streamlink: ", streamlink.toString());
+            streams.push({
+                name: "Paramount+ Sports",
+                title: "MPEG-TS (Remuxing)",
+                url: streamlink.toString(),
+                isLive: true,
+                notWebReady: true
+            });
+        }
+
+        const internal = new URL(`/api/stremio/${encodeURIComponent(key)}/proxy/hls`, base.origin);
+        internal.searchParams.set("u", Buffer.from(streamingUrl.toString()).toString('base64url'));
+        internal.searchParams.set("t", proxyToken);
+
+        if (internal) {
+            console.log("internal: ", internal.toString());
+            streams.push({
+                name: "Paramount+ Sports",
+                title: "HLS (Internal Proxy)",
+                url: internal.toString(),
+                isLive: true,
+                notWebReady: true
+            });
+        }
+
+        if (process.env.MFP_URL) {
+            const external = wrapUrlWithMediaFlow(streamingUrl, session, lsSession);
+            console.log("external: ", external?.toString());
+            streams.push({
+                name: "Paramount+ Sports",
+                title: "HLS (MFP Proxy)",
+                url: external?.toString(),
+                isLive: true,
+                notWebReady: true
+            });
         }
     }
 
-    return NextResponse.json(
-        {
-            streams: [
-                {
-                    name: "Paramount+ Sports",
-                    title: !isProxedFromMFP ? "HLS (proxied)" : "HLS (MFP proxied)",
-                    url: finalUrl,
-                },
-            ],
-        },
-        { status: 200, headers: { "Access-Control-Allow-Origin": "*" } }
-    );
+    return NextResponse.json({streams}, { status: 200, headers: { "Access-Control-Allow-Origin": "*" } });
 }
