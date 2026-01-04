@@ -64,7 +64,7 @@ export async function GET(
             console.log("streamlink: ", streamlink.toString());
             streams.push({
                 name: "Paramount+ Sports",
-                title: "MPEG-TS (Remuxing)",
+                title: "MPEG-TS (Internal Proxy + Remuxing)",
                 url: streamlink.toString(),
                 isLive: true,
                 notWebReady: true
@@ -87,8 +87,16 @@ export async function GET(
         }
 
         if (process.env.MFP_URL) {
-            const external = wrapUrlWithMediaFlow(streamingUrl, session, lsSession);
+            let external = wrapUrlWithMediaFlow(streamingUrl, session, lsSession, true);
             console.log("external: ", external?.toString());
+            streams.push({
+                name: "Paramount+ Sports",
+                title: "MPEG-TS (MFP Proxy + Remuxing)",
+                url: external?.toString(),
+                isLive: true,
+                notWebReady: true
+            });
+            external = wrapUrlWithMediaFlow(streamingUrl, session, lsSession, false);
             streams.push({
                 name: "Paramount+ Sports",
                 title: "HLS (MFP Proxy)",

@@ -136,7 +136,7 @@ export async function buildMfpHlsUrl(params: {
 }
 
 
-export function wrapUrlWithMediaFlow(destinationUrl: URL, session: any, ls_session: string): string | null {
+export function wrapUrlWithMediaFlow(destinationUrl: URL, session: any, ls_session: string, mpegts: boolean): string | null {
     const cfg = getMediaFlowConfig();
     if (!cfg) return null;
 
@@ -163,7 +163,13 @@ export function wrapUrlWithMediaFlow(destinationUrl: URL, session: any, ls_sessi
 
     // 4. Costruiamo l'URL finale per Mediaflow
     //const finalUrl = new URL(`${cfg.url}/proxy/hls/manifest.m3u8`);
-    const finalUrl = new URL(`${cfg.url}/proxy/stream`);
+
+    let url = `${cfg.url}/proxy/hls/manifest.m3u8`;
+    if(mpegts){
+        url = `${cfg.url}/proxy/stream`;
+    }
+
+    const finalUrl = new URL(url);
     finalUrl.searchParams.set("api_password", cfg.password);
     finalUrl.searchParams.set("d", encodedUrl);
     //finalUrl.searchParams.set("h", encodedHeaders); // Passiamo qui i tuoi headers!
