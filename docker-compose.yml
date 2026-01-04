@@ -5,10 +5,10 @@ services:
       dockerfile: Dockerfile
     container_name: Paramount
     environment:
-      - BASE_URL=http://192.168.1.78:3002
-      - KEY_SECRET=Q95nuXhBER7J71l4ryBNjX
-      - MFP_URL=http://192.168.1.8:8889
-      - MFP_PASS=Lello.21231605
+      - BASE_URL=http://localhost:3002
+      - KEY_SECRET=[random]
+      - MFP_URL=
+      - MFP_PASS=
     ports:
       - "3002:3000"
     restart: unless-stopped
