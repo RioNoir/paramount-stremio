@@ -11,6 +11,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
 
     const u = req.nextUrl.searchParams.get("u");
     const t = req.nextUrl.searchParams.get("t");
+    const q = req.nextUrl.searchParams.get("q");
     if (!u || !t) return new NextResponse("Missing u/t", { status: 400 });
 
     const tok: any = await unseal(t);
@@ -28,16 +29,30 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
     const args: string[] = [];
 
     args.push('--stdout');
+    args.push('--hls-live-restart');
+    args.push('--hls-segment-stream-data')
+    //args.push('--hls-segment-ignore-names', '0,1,2')
+    //args.push('--hls-segment-ignore', 'dai.google.com,doubleclick.net');
+    //args.push('--hls-segment-threads', '3');
+    args.push('--stream-segment-threads', '3');
+    args.push('--hls-live-edge', '1');
 
+    //FFmpeg
     args.push('--ffmpeg-ffmpeg', '/usr/bin/ffmpeg');
+    args.push('--ffmpeg-fout', 'mpegts');
     args.push('--ffmpeg-video-transcode', 'copy');
     args.push('--ffmpeg-audio-transcode', 'copy');
+    //args.push('--ffmpeg-video-transcode', 'h264');
+    //args.push('--ffmpeg-audio-transcode', 'aac');
+    //args.push('--ffmpeg-copyts');
+    //args.push('--ffmpeg-verbose');
 
+    //Headers
     args.push('--http-header', 'Cache-Control=no-store');
-    args.push('--http-header', 'User-Agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36');
+    //args.push('--http-header', 'User-Agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36');
+    args.push('--http-header', 'User-Agent=AppleTV6,2/11.1');
     args.push('--http-header', 'Origin=https://www.paramountplus.com');
-    args.push('--http-header', 'Referer=https://www.paramountplus.com/');
-
+    args.push('--http-header', 'Referer=https://www.paramountplus.com/')
     if (tok.ls_session) {
         args.push('--http-header', `Authorization=Bearer ${tok.ls_session.trim()}`);
     }
@@ -45,17 +60,17 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
         args.push('--http-header', `Cookie=${session.cookies.toString().trim()}`);
     }
 
-    // Aggiungi parametri di ottimizzazione per il live
-    //args.push('--hls-live-edge', '3');
-    //args.push('--hls-segment-threads', '2');
-
-    // 3. Aggiungi l'URL e la qualità (devono essere gli ultimi)
+    //Url
     args.push(upstreamUrl.toString());
-    args.push('best');
 
-    console.log('streamlink args:', args);
+    //Quality
+    if(q){
+        args.push(q);
+    }else{
+        args.push('best');
+    }
 
-    // Creiamo uno stream leggibile per Next.js
+    //Stream
     const stream = new ReadableStream({
         start(controller) {
             const streamlink = spawn('streamlink', args);
@@ -77,8 +92,6 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
                 controller.error(err);
             });
 
-            // Gestione della chiusura della connessione lato client
-            // Nota: req.signal è il modo standard per rilevare l'annullamento in Next.js
             req.signal.addEventListener('abort', () => {
                 console.log('Client aborted, killing streamlink...');
                 streamlink.kill();
@@ -92,7 +105,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
             'Cache-Control': 'no-cache, no-store, must-revalidate',
             'Connection': 'keep-alive',
             // --- HEADERS CORS ---
-            'Access-Control-Allow-Origin': '*', // Permette a Stremio di leggere il contenuto
+            'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'GET, OPTIONS',
             'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         },

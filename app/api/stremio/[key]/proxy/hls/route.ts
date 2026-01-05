@@ -1,7 +1,4 @@
-// app/api/stremio/[key]/proxy/hls/route.ts
-
 import { NextRequest, NextResponse } from "next/server";
-import HLS from 'hls-parser';
 import { readSessionFromKey } from "@/lib/auth/session";
 import { unseal } from "@/lib/auth/jwe";
 
@@ -10,8 +7,6 @@ export const preferredRegion = "iad1";
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-// Alcuni host Paramount/Irdeto richiedono Bearer+Cookie.
-// DAI e CDN segment spesso no.
 function needsParamountAuth(hostname: string) {
     const h = hostname.toLowerCase();
     return h.endsWith("cbsi.live.ott.irdeto.com") || h.endsWith("paramountplus.com") || h.endsWith("cbsivideo.com");

@@ -55,7 +55,7 @@ export async function POST(req: Request) {
     // @ts-ignore
     const key = await seal(sessionPayload);
 
-    const base = url.origin || process.env.BASE_URL || "http://localhost:3000";
+    const base = process.env.BASE_URL || url.origin || "http://localhost:3000";
     // ✅ KEY nel PATH (non in query) + termina con /manifest.json
     const manifestUrl = `${base}/api/stremio/${encodeURIComponent(key)}/manifest.json`;
 

@@ -1,5 +1,3 @@
-// app/api/stremio/[key]/proxy/seg/route.ts
-
 import { NextRequest, NextResponse } from "next/server";
 import { readSessionFromKey } from "@/lib/auth/session";
 import { unseal } from "@/lib/auth/jwe";

@@ -26,13 +26,18 @@ export async function GET(_req: Request, ctx: { params: Promise<{ key: string }>
         }
     ];
 
+    const url = process.env.BASE_URL || _req.url || "http://localhost:3000";
+    const base = new URL(url);
+    const logo = new URL(`/icon.png`, base.origin);
+    const background = new URL(`/fanart.png`, base.origin);
+
     const manifest = {
         id: "org.paramountplus.us.sports",
         version: "1.0.0",
         name: "Paramount+ Sports (US)",
         description: "Unofficial Paramount+ US Sports Addon. Watch all live events from your account.",
-        logo: "https://play-lh.googleusercontent.com/oi4GE8ulxHp4Y2xVzKu_WAMrgE4Jj4Kbdd7hAWLeoZTsMtC5bYTd2xcYhlvMk69pTFY",
-        background: "https://static0.howtogeekimages.com/wordpress/wp-content/uploads/2023/08/paramount-1.jpg?w=1600&h=900&fit=crop",
+        logo: logo,
+        background: background,
         resources: ["catalog", "meta", "stream"],
         types: ["tv"],
         idPrefixes: ["pplus:"],
