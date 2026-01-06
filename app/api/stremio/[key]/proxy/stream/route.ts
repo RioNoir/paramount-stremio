@@ -30,7 +30,8 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
 
     args.push('--stdout');
     args.push('--hls-live-restart');
-    args.push('--hls-segment-stream-data')
+    args.push('--hls-segment-stream-data');
+    args.push('--hls-audio-select', "*");
     //args.push('--hls-segment-ignore-names', '0,1,2')
     //args.push('--hls-segment-ignore', 'dai.google.com,doubleclick.net');
     //args.push('--hls-segment-threads', '3');
@@ -52,7 +53,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
     //args.push('--http-header', 'User-Agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36');
     args.push('--http-header', 'User-Agent=AppleTV6,2/11.1');
     args.push('--http-header', 'Origin=https://www.paramountplus.com');
-    args.push('--http-header', 'Referer=https://www.paramountplus.com/')
+    args.push('--http-header', 'Referer=https://www.paramountplus.com/');
     if (tok.ls_session) {
         args.push('--http-header', `Authorization=Bearer ${tok.ls_session.trim()}`);
     }
