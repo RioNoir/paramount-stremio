@@ -52,6 +52,21 @@ export async function GET(
         const url = process.env.BASE_URL || req.url || "http://localhost:3000";
         const base = new URL(url);
 
+        //HLS internal proxy stream
+        const internal = new URL(`/api/stremio/${encodeURIComponent(key)}/proxy/hls`, base.origin);
+        internal.searchParams.set("u", Buffer.from(streamingUrl.toString()).toString('base64url'));
+        internal.searchParams.set("t", proxyToken);
+        if (internal) {
+            console.log("internal: ", internal.toString());
+            streams.push({
+                name: "Paramount+ Sports",
+                title: "HLS",
+                url: internal.toString(),
+                isLive: true,
+                notWebReady: true
+            });
+        }
+
         //MPEG-TS internal proxy remuxed stream
         const qualities = ['1080p', '720p', '540p', '360p'];
         Object.values(qualities).forEach((quality) => {
@@ -71,21 +86,6 @@ export async function GET(
                 });
             }
         });
-
-        //HLS internal proxy stream
-        const internal = new URL(`/api/stremio/${encodeURIComponent(key)}/proxy/hls`, base.origin);
-        internal.searchParams.set("u", Buffer.from(streamingUrl.toString()).toString('base64url'));
-        internal.searchParams.set("t", proxyToken);
-        if (internal) {
-            console.log("internal: ", internal.toString());
-            streams.push({
-                name: "Paramount+ Sports",
-                title: "HLS",
-                url: internal.toString(),
-                isLive: true,
-                notWebReady: true
-            });
-        }
 
         //MediaFlow Proxy streams
         if (process.env.MFP_URL) {
