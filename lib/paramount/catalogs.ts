@@ -40,9 +40,19 @@ function yearFromEpochMs(ms?: number): string | undefined {
 
 function fmtUtc(ms?: number): string | undefined {
     if (!ms || !Number.isFinite(ms)) return undefined;
-    // "2025-12-26 12:20 UTC"
-    const iso = new Date(ms).toISOString(); // 2025-12-26T12:20:00.000Z
-    return iso.slice(0, 16).replace("T", " ") + " UTC";
+
+    const timezone = process.env.TIMEZONE || 'UTC'; // Fallback su UTC se non specificato
+    const d = new Date(ms);
+
+    return new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    }).format(d);
 }
 
 function pickSportsPoster(e: any): string | undefined {

@@ -17,8 +17,19 @@ export type StremioMeta = {
 
 function fmtUtc(ms?: number): string | undefined {
     if (!ms || !Number.isFinite(ms)) return undefined;
-    const iso = new Date(ms).toISOString();
-    return iso.slice(0, 16).replace("T", " ") + " UTC";
+
+    const timezone = process.env.TIMEZONE || 'UTC'; // Fallback su UTC se non specificato
+    const d = new Date(ms);
+
+    return new Intl.DateTimeFormat('it-IT', {
+        timeZone: timezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    }).format(d);
 }
 
 function pickPoster(e: any): string | undefined {
