@@ -49,7 +49,8 @@ function rewriteM3U8(params: {
     // --- 1. MASTER MANIFEST ---
     if (text.includes("#EXT-X-STREAM-INF")) {
         const headerLines: string[] = [];
-        const variants: { bandwidth: number; info: string; url: string }[] = [];
+        const streamInfVariants: { bandwidth: number; info: string; url: string }[] = [];
+        const frameStreamInfVariants: { bandwidth: number; info: string;}[] = [];
         const footerLines: string[] = [];
 
         for (let i = 0; i < lines.length; i++) {
@@ -64,37 +65,51 @@ function rewriteM3U8(params: {
                 // La riga successiva è l'URL della variante
                 const nextLine = lines[i + 1]?.trim();
                 if (nextLine && !nextLine.startsWith("#")) {
-                    variants.push({
+                    streamInfVariants.push({
                         bandwidth,
                         info: line,
                         url: toProxy(new URL(nextLine, upstreamUrl).toString())
                     });
                     i++; // Salta la riga dell'URL nel ciclo principale
                 }
-            } else if (line.startsWith("#EXT-X-MEDIA") || line.startsWith("#EXT-X-I-FRAME-STREAM-INF")) {
-                // Gestione audio e i-frame come prima
+            } else if (line.startsWith("#EXT-X-I-FRAME-STREAM-INF")) {
+                // Estrae la bandwidth per l'ordinamento
+                const bwMatch = line.match(/BANDWIDTH=(\d+)/);
+                const bandwidth = bwMatch ? parseInt(bwMatch[1], 10) : 0;
+
+                const uriMatch = line.match(/URI=["']([^"']+)["']/);
+                if (uriMatch) {
+                    const absUri = new URL(uriMatch[1], upstreamUrl).toString();
+                    line = line.replace(uriMatch[1], toProxy(absUri));
+                }
+
+                frameStreamInfVariants.push({
+                    bandwidth,
+                    info: line
+                });
+            } else if (line.startsWith("#EXT")) {
                 const uriMatch = line.match(/URI=["']([^"']+)["']/);
                 if (uriMatch) {
                     const absUri = new URL(uriMatch[1], upstreamUrl).toString();
                     line = line.replace(uriMatch[1], toProxy(absUri));
                 }
                 headerLines.push(line);
-            } else if (line.startsWith("#EXTM3U") || line.startsWith("#EXT-X-VERSION") || line.startsWith("##")) {
-                headerLines.push(line);
-            } else {
-                footerLines.push(line);
             }
         }
 
         // --- ORDINAMENTO ---
         // Ordina dalla bandwidth più alta alla più bassa
-        variants.sort((a, b) => b.bandwidth - a.bandwidth);
+        streamInfVariants.sort((a, b) => b.bandwidth - a.bandwidth);
+        frameStreamInfVariants.sort((a, b) => b.bandwidth - a.bandwidth);
 
         // Ricostruisce il file
         const outMaster = [...headerLines];
-        variants.forEach(v => {
+        streamInfVariants.forEach(v => {
             outMaster.push(v.info);
             outMaster.push(v.url);
+        });
+        frameStreamInfVariants.forEach(v => {
+            outMaster.push(v.info);
         });
         outMaster.push(...footerLines);
 
@@ -107,7 +122,7 @@ function rewriteM3U8(params: {
         line = line.trim();
         if (!line) continue;
 
-        if (line.startsWith("#EXT-X-KEY:")) {
+        if (line.startsWith("#EXT")) {
             const m = line.match(/URI=["']([^"']+)["']/);
             if (m) {
                 const absKey = new URL(m[1], upstreamUrl).toString();
