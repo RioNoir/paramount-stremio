@@ -9,7 +9,8 @@ export const revalidate = 0;
 
 function needsParamountAuth(hostname: string) {
     const h = hostname.toLowerCase();
-    return h.endsWith("cbsi.live.ott.irdeto.com") || h.endsWith("paramountplus.com") || h.endsWith("cbsivideo.com");
+    //return h.endsWith("cbsi.live.ott.irdeto.com") || h.endsWith("paramountplus.com") || h.endsWith("cbsivideo.com");
+    return !h.endsWith("google.com");
 }
 
 function buildCookieHeader(cookies: string[] | undefined) {
@@ -47,37 +48,65 @@ function rewriteM3U8(params: {
 
     // --- 1. MASTER MANIFEST ---
     if (text.includes("#EXT-X-STREAM-INF")) {
-        const outMaster: string[] = [];
-        for (let line of lines) {
-            line = line.trim();
+        const headerLines: string[] = [];
+        const variants: { bandwidth: number; info: string; url: string }[] = [];
+        const footerLines: string[] = [];
+
+        for (let i = 0; i < lines.length; i++) {
+            let line = lines[i].trim();
             if (!line) continue;
 
-            // Proxy delle tracce Audio (fondamentale!)
-            if (line.startsWith("#EXT-X-MEDIA:TYPE=AUDIO")) {
+            if (line.startsWith("#EXT-X-STREAM-INF")) {
+                // Estrae la bandwidth per l'ordinamento
+                const bwMatch = line.match(/BANDWIDTH=(\d+)/);
+                const bandwidth = bwMatch ? parseInt(bwMatch[1], 10) : 0;
+
+                // La riga successiva è l'URL della variante
+                const nextLine = lines[i + 1]?.trim();
+                if (nextLine && !nextLine.startsWith("#")) {
+                    variants.push({
+                        bandwidth,
+                        info: line,
+                        url: toProxy(new URL(nextLine, upstreamUrl).toString())
+                    });
+                    i++; // Salta la riga dell'URL nel ciclo principale
+                }
+            } else if (line.startsWith("#EXT-X-MEDIA") || line.startsWith("#EXT-X-I-FRAME-STREAM-INF")) {
+                // Gestione audio e i-frame come prima
                 const uriMatch = line.match(/URI=["']([^"']+)["']/);
                 if (uriMatch) {
-                    const absAudio = new URL(uriMatch[1], upstreamUrl).toString();
-                    line = line.replace(uriMatch[1], toProxy(absAudio));
+                    const absUri = new URL(uriMatch[1], upstreamUrl).toString();
+                    line = line.replace(uriMatch[1], toProxy(absUri));
                 }
-                outMaster.push(line);
-            }
-            // Proxy delle varianti Video
-            else if (!line.startsWith("#")) {
-                outMaster.push(toProxy(new URL(line, upstreamUrl).toString()));
+                headerLines.push(line);
+            } else if (line.startsWith("#EXTM3U") || line.startsWith("#EXT-X-VERSION") || line.startsWith("##")) {
+                headerLines.push(line);
             } else {
-                outMaster.push(line);
+                footerLines.push(line);
             }
         }
+
+        // --- ORDINAMENTO ---
+        // Ordina dalla bandwidth più alta alla più bassa
+        variants.sort((a, b) => b.bandwidth - a.bandwidth);
+
+        // Ricostruisce il file
+        const outMaster = [...headerLines];
+        variants.forEach(v => {
+            outMaster.push(v.info);
+            outMaster.push(v.url);
+        });
+        outMaster.push(...footerLines);
+
         return outMaster.join("\n");
     }
 
-    // --- 2. MEDIA PLAYLIST (Standard Proxy) ---
+    // --- 2. MEDIA PLAYLIST (Rimane invariata) ---
     const outMedia: string[] = [];
     for (let line of lines) {
         line = line.trim();
         if (!line) continue;
 
-        // Proxy delle Chiavi AES
         if (line.startsWith("#EXT-X-KEY:")) {
             const m = line.match(/URI=["']([^"']+)["']/);
             if (m) {
@@ -88,7 +117,6 @@ function rewriteM3U8(params: {
             continue;
         }
 
-        // Proxy di tutti i segmenti (.ts), inclusi quelli pubblicitari
         if (!line.startsWith("#")) {
             try {
                 outMedia.push(toProxy(new URL(line, upstreamUrl).toString()));
@@ -99,8 +127,6 @@ function rewriteM3U8(params: {
             outMedia.push(line);
         }
     }
-
-    //console.log(outMedia.join("\n"));
     return outMedia.join("\n");
 }
 
@@ -128,11 +154,9 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
 
     const headers: Record<string, string> = {
         // niente cache: playlist live DAI cambia spesso
-        "cache-control": "no-store",
+        "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
         // UA realistico aiuta su alcune CDN
-        "user-agent":
-            req.headers.get("user-agent") ||
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
+        "user-agent": "AppleTV6,2/11.1",
         accept: "application/vnd.apple.mpegurl, application/x-mpegURL, */*",
     };
 
@@ -158,11 +182,17 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
 
     // HEAD: passthrough header (senza body)
     if (method === "HEAD") {
-        const h = new Headers({ "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store" });
+        const h = new Headers({
+            "Allow": "GET, HEAD, OPTIONS",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Cache-Control": "no-cache, no-store, max-age=0, must-revalidate"
+        });
         const ct = res.headers.get("content-type");
-        if (ct) h.set("content-type", ct);
+        if (ct) h.set("Content-Type", ct);
         const cc = res.headers.get("cache-control");
-        if (cc) h.set("cache-control", cc);
+        if (cc) h.set("Cache-Control", cc);
         return new NextResponse(null, { status: res.status, headers: h });
     }
 
@@ -178,9 +208,13 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
     });
 
     const outHeaders = new Headers({
+        "Allow": "GET, HEAD, OPTIONS",
         "Access-Control-Allow-Origin": "*",
-        "Cache-Control": "no-store",
+        "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        "Cache-Control": "no-cache, no-store, max-age=0, must-revalidate",
         "Content-Type": "application/vnd.apple.mpegurl",
+        //"Content-Type": "text/plain",
     });
 
     return new NextResponse(rewritten, { status: res.status, headers: outHeaders });

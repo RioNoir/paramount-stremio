@@ -68,24 +68,24 @@ export async function GET(
         }
 
         //MPEG-TS internal proxy remuxed stream
-        const qualities = ['1080p', '720p', '540p', '360p'];
-        Object.values(qualities).forEach((quality) => {
-            const streamlink = new URL(`/api/stremio/${encodeURIComponent(key)}/proxy/stream`, base.origin);
-            streamlink.searchParams.set("u", Buffer.from(streamingUrl.toString()).toString('base64url'));
-            streamlink.searchParams.set("t", proxyToken);
-            streamlink.searchParams.set("q", quality);
-
-            if (streamlink) {
-                console.log("streamlink: ", streamlink.toString());
-                streams.push({
-                    name: "Paramount+ Sports",
-                    title: `MPEG-TS (${quality})`,
-                    url: streamlink.toString(),
-                    isLive: true,
-                    notWebReady: true
-                });
-            }
-        });
+        // const qualities = ['1080p', '720p', '540p', '360p'];
+        // Object.values(qualities).forEach((quality) => {
+        //     const streamlink = new URL(`/api/stremio/${encodeURIComponent(key)}/proxy/stream`, base.origin);
+        //     streamlink.searchParams.set("u", Buffer.from(streamingUrl.toString()).toString('base64url'));
+        //     streamlink.searchParams.set("t", proxyToken);
+        //     streamlink.searchParams.set("q", quality);
+        //
+        //     if (streamlink) {
+        //         console.log("streamlink: ", streamlink.toString());
+        //         streams.push({
+        //             name: "Paramount+ Sports",
+        //             title: `MPEG-TS (${quality})`,
+        //             url: streamlink.toString(),
+        //             isLive: true,
+        //             notWebReady: true
+        //         });
+        //     }
+        // });
 
         //MediaFlow Proxy streams
         if (process.env.MFP_URL) {

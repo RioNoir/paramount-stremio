@@ -14,11 +14,11 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 # Installazione di Python e Streamlink
-RUN apk add --no-cache \
-    python3 \
-    py3-pip \
-    ffmpeg && \
-    pip3 install --break-system-packages -U streamlink
+#RUN apk add --no-cache \
+#    python3 \
+#    py3-pip \
+#    ffmpeg && \
+#    pip3 install --break-system-packages -U streamlink
 
 COPY --from=build /app/.next ./.next
 COPY --from=build /app/public ./public

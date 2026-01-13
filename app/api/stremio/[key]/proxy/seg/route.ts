@@ -9,7 +9,8 @@ export const revalidate = 0;
 
 function needsParamountAuth(hostname: string) {
     const h = hostname.toLowerCase();
-    return h.endsWith("cbsi.live.ott.irdeto.com") || h.endsWith("paramountplus.com") || h.endsWith("cbsivideo.com");
+    //return h.endsWith("cbsi.live.ott.irdeto.com") || h.endsWith("paramountplus.com") || h.endsWith("cbsivideo.com");
+    return !h.endsWith("google.com");
 }
 
 function buildCookieHeader(cookies: string[] | undefined) {
@@ -93,6 +94,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
     const headers: Record<string, string> = {
         ...forwardHeaders(req),
     };
+    headers["user-agent"] = "AppleTV6,2/11.1";
 
     // Solo per host che lo richiedono davvero
     if (needsParamountAuth(upstreamUrl.hostname)) {
@@ -121,6 +123,11 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
     } else if (upstreamUrl.pathname.endsWith(".m4s")) {
         outHeaders.set("Content-Type", "video/iso.segment");
     }
+    outHeaders.set("Allow", "GET, HEAD, OPTIONS");
+    outHeaders.set("Access-Control-Allow-Origin", "*");
+    outHeaders.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+    outHeaders.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    outHeaders.set("Cache-Control", "no-cache, no-store, max-age=0, must-revalidate");
 
     // HEAD senza body
     if (method === "HEAD") {
