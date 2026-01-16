@@ -40,7 +40,7 @@ function TextArea({
         <textarea
             value={value}
             readOnly={readOnly}
-            className="min-h-[90px] w-full resize-y rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-gray-400"
+            className="min-h-[90px] w-full resize-y rounded-xl border border-gray-200 bg-white text-gray-700 px-3 py-2 text-sm outline-none focus:border-gray-400"
         />
     );
 }
