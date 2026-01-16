@@ -101,7 +101,7 @@ export function mapSportListingToMeta(e: any) {
     } as StremioMeta;
 }
 
-export async function getSportListing(session: ParamountSession, id: string) : any{
+export async function getSportListing(session: ParamountSession, id: string) : Promise<any>{
     const client = new ParamountClient();
     await client.setSession(session);
     const data : any = await client.getSportsLiveUpcoming();
