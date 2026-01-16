@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readSessionFromKey } from "@/lib/auth/session";
+import { ParamountClient } from "@/lib/paramount/client";
 import { getCatalogMetas } from "@/lib/paramount/catalogs";
 
 export const runtime = "nodejs";
@@ -23,7 +23,10 @@ export async function GET(
 ) {
     const { key, type, id, extra } = await ctx.params;
 
-    const session = await readSessionFromKey(decodeURIComponent(key));
+    const client = new ParamountClient();
+    await client.setSessionKey(key);
+
+    const session = client.getSession();
     if (!session) return NextResponse.json({ metas: [] });
 
     const metas = await getCatalogMetas({

@@ -1,30 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readSessionFromKey } from "@/lib/auth/session";
-import { unseal } from "@/lib/auth/jwe";
+import {ParamountClient} from "@/lib/paramount/client";
+import {needsParamountAuth, buildCookieHeader, guessBaseOrigin} from "@/lib/paramount/utils";
 
 export const runtime = "nodejs";
 export const preferredRegion = "iad1";
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
-
-function needsParamountAuth(hostname: string) {
-    const h = hostname.toLowerCase();
-    //return h.endsWith("cbsi.live.ott.irdeto.com") || h.endsWith("paramountplus.com") || h.endsWith("cbsivideo.com");
-    return !h.endsWith("google.com");
-}
-
-function buildCookieHeader(cookies: string[] | undefined) {
-    if (!cookies?.length) return "";
-    return cookies
-        .map((c) => c.split(";")[0].trim())
-        .filter(Boolean)
-        .join("; ");
-}
-
-function guessBaseOrigin(req: NextRequest) {
-    const baseUrl = process.env.BASE_URL || req.url || "http://localhost:3000";
-    return new URL(baseUrl).origin;
-}
 
 function rewriteM3U8(params: {
     text: string;
@@ -148,36 +129,34 @@ function rewriteM3U8(params: {
 async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> }) {
     const { key } = await ctx.params;
 
-    const session = await readSessionFromKey(decodeURIComponent(key));
+    const client = new ParamountClient();
+    await client.setSessionKey(key);
+
+    const session = client.getSession();
     if (!session) return new NextResponse("Unauthorized", { status: 401 });
 
     const u = req.nextUrl.searchParams.get("u");
     const t = req.nextUrl.searchParams.get("t");
     if (!u || !t) return new NextResponse("Missing u/t", { status: 400 });
 
-    const tok: any = await unseal(t);
-    if (!tok || tok.kind !== "pplus_proxy" || !tok.ls_session) {
-        return new NextResponse("Bad token", { status: 401 });
-    }
-
     let upstreamUrl: URL;
+    let upstreamToken: string;
     try {
         upstreamUrl = new URL(Buffer.from(u, 'base64url').toString('utf-8'));
+        upstreamToken = Buffer.from(t, 'base64url').toString('utf-8');
     } catch {
-        return new NextResponse("Bad upstream url", { status: 400 });
+        return new NextResponse("Bad upstream url or token", { status: 400 });
     }
 
     const headers: Record<string, string> = {
-        // niente cache: playlist live DAI cambia spesso
         "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
-        // UA realistico aiuta su alcune CDN
-        "user-agent": "AppleTV6,2/11.1",
+        //"user-agent": "AppleTV6,2/11.1",
+        "user-agent": "Paramount+/15.5.0 (com.cbs.ott; androidphone) okhttp/5.1.0",
         accept: "application/vnd.apple.mpegurl, application/x-mpegURL, */*",
     };
 
-    // Authorization/Cookie solo dove serve davvero
     if (needsParamountAuth(upstreamUrl.hostname)) {
-        headers["authorization"] = `Bearer ${tok.ls_session}`;
+        headers["authorization"] = `Bearer ${upstreamToken}`;
 
         const cookie = buildCookieHeader(session.cookies);
         if (cookie) headers["cookie"] = cookie;
@@ -195,7 +174,6 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
         cache: "no-store",
     });
 
-    // HEAD: passthrough header (senza body)
     if (method === "HEAD") {
         const h = new Headers({
             "Allow": "GET, HEAD, OPTIONS",
@@ -218,8 +196,8 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
         text,
         upstreamUrl,
         baseOrigin,
-        key, // usa lo stesso key path-segment ricevuto (evita doppie encode)
-        token: t,
+        key,
+        token: t
     });
 
     const outHeaders = new Headers({

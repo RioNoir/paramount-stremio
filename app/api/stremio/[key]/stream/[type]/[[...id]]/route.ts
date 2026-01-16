@@ -1,16 +1,14 @@
+
 import { NextRequest, NextResponse } from "next/server";
-import { readSessionFromKey } from "@/lib/auth/session";
+import { ParamountClient } from "@/lib/paramount/client";
 import { parsePplusId } from "@/lib/paramount/mapping";
-import { resolveSportStream, resolveLinearStream } from "@/lib/paramount/sports";
-import { seal } from "@/lib/auth/jwe";
+import { stripJsonSuffix } from "@/lib/paramount/utils";
+import { resolveSportStream, resolveLinearStream } from "@/lib/paramount/types/sports";
 import { wrapUrlWithMediaFlow } from "@/lib/mediaflowproxy/mediaflowproxy";
+import { seal } from "@/lib/auth/jwe";
 
 export const runtime = "nodejs";
 export const preferredRegion = "iad1";
-
-function stripJsonSuffix(s: string) {
-    return s.endsWith(".json") ? s.slice(0, -5) : s;
-}
 
 export async function GET(
     req: NextRequest,
@@ -18,7 +16,10 @@ export async function GET(
 ) {
     const { key, type, id } = await ctx.params;
 
-    const session = await readSessionFromKey(decodeURIComponent(key));
+    const client = new ParamountClient();
+    await client.setSessionKey(key);
+
+    const session = client.getSession();
     if (!session) return NextResponse.json({ streams: [] }, { status: 200 });
 
     const cleaned = stripJsonSuffix(String(id));
@@ -27,7 +28,6 @@ export async function GET(
     if (type !== "tv") return NextResponse.json({ streams: [] }, { status: 200 });
     const parsed = parsePplusId(decoded);
 
-    //Check current stream data
     let streamData = null;
     if (parsed.kind === "sport") {
         streamData = await resolveSportStream(session, parsed.key);
@@ -36,15 +36,10 @@ export async function GET(
     }
     if (!streamData) return NextResponse.json({ streams: [] }, { status: 200 });
 
-    //Create token
-    const proxyToken = await seal({
-        kind: "pplus_proxy",
-        ls_session: streamData.ls_session,
-        exp: Date.now() + 120 * 60 * 1000,
-    });
 
-    const lsSession = streamData.ls_session;
+    const lsSession = streamData.lsSession;
     const streamingUrl = new URL(streamData.streamingUrl);
+    const streamingTitle = streamData.streamingTitle;
     const streams = [];
 
     // Proxy playlist endpoint
@@ -55,53 +50,30 @@ export async function GET(
         //HLS internal proxy stream
         const internal = new URL(`/api/stremio/${encodeURIComponent(key)}/proxy/hls`, base.origin);
         internal.searchParams.set("u", Buffer.from(streamingUrl.toString()).toString('base64url'));
-        internal.searchParams.set("t", proxyToken);
+        internal.searchParams.set("t", Buffer.from(lsSession.toString()).toString('base64url'));
         if (internal) {
-            console.log("internal: ", internal.toString());
             streams.push({
-                name: "Paramount+ Sports",
-                title: "HLS",
+                name: "Paramount+ (US)",
+                title: `${streamingTitle} \n🎞 HLS`,
                 url: internal.toString(),
                 isLive: true,
                 notWebReady: true
             });
         }
 
-        //MPEG-TS internal proxy remuxed stream
-        // const qualities = ['1080p', '720p', '540p', '360p'];
-        // Object.values(qualities).forEach((quality) => {
-        //     const streamlink = new URL(`/api/stremio/${encodeURIComponent(key)}/proxy/stream`, base.origin);
-        //     streamlink.searchParams.set("u", Buffer.from(streamingUrl.toString()).toString('base64url'));
-        //     streamlink.searchParams.set("t", proxyToken);
-        //     streamlink.searchParams.set("q", quality);
-        //
-        //     if (streamlink) {
-        //         console.log("streamlink: ", streamlink.toString());
-        //         streams.push({
-        //             name: "Paramount+ Sports",
-        //             title: `MPEG-TS (${quality})`,
-        //             url: streamlink.toString(),
-        //             isLive: true,
-        //             notWebReady: true
-        //         });
-        //     }
-        // });
-
-        //MediaFlow Proxy streams
         if (process.env.MFP_URL) {
             let external = wrapUrlWithMediaFlow(streamingUrl, session, lsSession, true);
-            console.log("external: ", external?.toString());
             streams.push({
-                name: "Paramount+ Sports",
-                title: "MPEG-TS (MFP Proxy)",
+                name: "Paramount+ (US)",
+                title: `${streamingTitle} \n🎞 MPEG-TS (MFP Proxy)`,
                 url: external?.toString(),
                 isLive: true,
                 notWebReady: true
             });
             external = wrapUrlWithMediaFlow(streamingUrl, session, lsSession, false);
             streams.push({
-                name: "Paramount+ Sports",
-                title: "HLS (MFP Proxy)",
+                name: "Paramount+ (US)",
+                title: `${streamingTitle} \n🎞 HLS (MFP Proxy)`,
                 url: external?.toString(),
                 isLive: true,
                 notWebReady: true

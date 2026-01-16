@@ -1,11 +1,3 @@
-const PPLUS_IMG_BASE = "https://wwwimage-us.pplusstatic.com/base/"; // si vede dai link “base/files/...” :contentReference[oaicite:5]{index=5}
-
-export function normImg(urlOrPath?: string | null): string | undefined {
-    if (!urlOrPath) return undefined;
-    if (urlOrPath.startsWith("http://") || urlOrPath.startsWith("https://")) return urlOrPath;
-    return new URL(urlOrPath.replace(/^\//, ""), PPLUS_IMG_BASE).toString();
-}
-
 export function pplusMovieId(contentId: string) {
     return `pplus:movie:${contentId}`;
 }

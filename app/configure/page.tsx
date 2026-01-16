@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import {ParamountAuthStart} from "@/lib/paramount/client";
 
 function Button({
     children,
@@ -25,25 +26,6 @@ function Button({
         <button type={type} onClick={onClick} disabled={disabled} className={`${base} ${styles}`}>
             {children}
         </button>
-    );
-}
-
-function Input({
-   value,
-   onChange,
-   placeholder,
-}: {
-    value: string;
-    onChange: (v: string) => void;
-    placeholder?: string;
-}) {
-    return (
-        <input
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder={placeholder}
-            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-gray-400"
-        />
     );
 }
 
@@ -86,14 +68,14 @@ async function copyToClipboard(text: string) {
 
 export default function ConfigurePage() {
     const [activationCode, setActivationCode] = useState<string | null>(null);
-    const [pendingToken, setPendingToken] = useState<string | null>(null);
+    const [paramountAuth, setParamountAuth] = useState<ParamountAuthStart | null>(null);
     const [manifestUrl, setManifestUrl] = useState<string | null>(null);
     const [key, setKey] = useState("");
     const [toast, setToast] = useState<string | null>(null);
 
     async function start() {
         setActivationCode(null);
-        setPendingToken(null);
+        setParamountAuth(null);
         setManifestUrl(null);
 
         const r = await fetch("/api/auth/device/start", { method: "POST" });
@@ -105,14 +87,14 @@ export default function ConfigurePage() {
         }
 
         setActivationCode(j.activationCode);
-        setPendingToken(j.pendingToken);
+        setParamountAuth(j);
     }
 
-    async function pollOnce(token: string) {
+    async function pollOnce(paramountAuth: ParamountAuthStart) {
         const r = await fetch("/api/auth/device/poll", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ pendingToken: token }),
+            body: JSON.stringify(paramountAuth),
         });
         const j = await r.json();
         if (j.ok) {
@@ -123,19 +105,19 @@ export default function ConfigurePage() {
     }
 
     useEffect(() => {
-        if (!pendingToken || manifestUrl) return;
+        if (!paramountAuth || manifestUrl) return;
 
         const t = setInterval(async () => {
             try {
-                const ok = await pollOnce(pendingToken);
+                const ok = await pollOnce(paramountAuth);
                 if (ok) clearInterval(t);
             } catch {}
         }, 3000);
 
         return () => clearInterval(t);
-    }, [pendingToken, manifestUrl]);
+    }, [paramountAuth, manifestUrl]);
 
-    // opzionale: se vuoi leggere la key dalla query (?key=...)
+
     useEffect(() => {
         const url = new URL(window.location.href);
         const q = url.searchParams.get("key");
@@ -143,24 +125,10 @@ export default function ConfigurePage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const origin = useMemo(() => (typeof window !== "undefined" ? window.location.origin : ""), []);
-
     const stremioInstallUrl = useMemo(() => {
-        // Stremio supporta install tramite URL. In molti casi basta incollare manifestUrl nell’app.
-        // Qui ti lasciamo anche un link “apri stremio” che spesso funziona su desktop.
         if (!manifestUrl) return "";
         return `stremio://` + manifestUrl;
     }, [manifestUrl]);
-
-    const debugFeaturedUrl = useMemo(() => {
-        if (!origin || !key) return "";
-        return `${origin}/api/debug/paramount?endpoint=carousels&key=${encodeURIComponent(key)}`;
-    }, [origin, key]);
-
-    const debugSportsUrl = useMemo(() => {
-        if (!origin || !key) return "";
-        return `${origin}/api/debug/paramount-sports?limit=2&pretty=1&key=${encodeURIComponent(key)}`;
-    }, [origin, key]);
 
     function showToast(msg: string) {
         setToast(msg);
@@ -170,13 +138,7 @@ export default function ConfigurePage() {
     async function onCopyManifest() {
         if (!manifestUrl) return;
         const ok = await copyToClipboard(manifestUrl);
-        showToast(ok ? "Manifest URL copiato ✅" : "Impossibile copiare 😅");
-    }
-
-    async function onCopyKey() {
-        if (!key) return;
-        const ok = await copyToClipboard(key);
-        showToast(ok ? "Key copiata ✅" : "Impossibile copiare 😅");
+        showToast(ok ? "Manifest URL copied ✅" : "Unable to copy 😅");
     }
 
     return (

@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
-import { readSessionFromKey } from "@/lib/auth/session";
+import { ParamountClient } from "@/lib/paramount/client";
 
 export const runtime = "nodejs";
 
 export async function GET(_req: Request, ctx: { params: Promise<{ key: string }> }) {
     const { key } = await ctx.params;
 
-    const session = await readSessionFromKey(decodeURIComponent(key));
+    const client = new ParamountClient();
+    await client.setSessionKey(key);
+
+    const session = client.getSession();
     if (!session) {
         return NextResponse.json({ error: "Invalid session" }, { status: 401 });
     }
@@ -32,14 +35,14 @@ export async function GET(_req: Request, ctx: { params: Promise<{ key: string }>
     const background = new URL(`/fanart.png`, base.origin);
 
     const manifest = {
-        id: "org.paramountplus.us.sports",
+        id: "org.pplus.stremio",
         version: "1.0.0",
-        name: "Paramount+ Sports (US)",
-        description: "Unofficial Paramount+ US Sports Addon. Watch all live events from your account.",
+        name: "Paramount+ (US)",
+        description: `Unofficial Paramount+ US Addon for Stremio. (Profile ID: ${session.profileId})`,
         logo: logo,
         background: background,
         resources: ["catalog", "meta", "stream"],
-        types: ["tv"],
+        types: ["tv"], //TODO: movie, series
         idPrefixes: ["pplus:"],
         catalogs,
     };

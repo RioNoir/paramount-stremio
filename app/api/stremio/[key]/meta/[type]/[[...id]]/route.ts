@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readSessionFromKey } from "@/lib/auth/session";
+import { ParamountClient } from "@/lib/paramount/client";
 import { parsePplusId } from "@/lib/paramount/mapping";
-import { buildSportMeta, buildLinearMeta } from "@/lib/paramount/sports";
+import { stripJsonSuffix } from "@/lib/paramount/utils";
+import { buildSportMeta, buildLinearMeta } from "@/lib/paramount/types/sports";
 
 export const runtime = "nodejs";
-
-function stripJsonSuffix(s: string) {
-    return s.endsWith(".json") ? s.slice(0, -5) : s;
-}
 
 export async function GET(
     _req: NextRequest,
@@ -15,7 +12,10 @@ export async function GET(
 ) {
     const { key, type, id } = await ctx.params;
 
-    const session = await readSessionFromKey(decodeURIComponent(key));
+    const client = new ParamountClient();
+    await client.setSessionKey(key);
+
+    const session = client.getSession();
     if (!session) return NextResponse.json({ meta: null }, { status: 200 });
 
     const cleaned = stripJsonSuffix(String(id));

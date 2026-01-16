@@ -1,104 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readSessionFromKey } from "@/lib/auth/session";
-import { unseal } from "@/lib/auth/jwe";
+import {ParamountClient} from "@/lib/paramount/client";
+import {needsParamountAuth, buildCookieHeader, forwardHeaders, copyRespHeaders} from "@/lib/paramount/utils";
 
 export const runtime = "nodejs";
 export const preferredRegion = "iad1";
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-function needsParamountAuth(hostname: string) {
-    const h = hostname.toLowerCase();
-    //return h.endsWith("cbsi.live.ott.irdeto.com") || h.endsWith("paramountplus.com") || h.endsWith("cbsivideo.com");
-    return !h.endsWith("google.com");
-}
-
-function buildCookieHeader(cookies: string[] | undefined) {
-    if (!cookies?.length) return "";
-    return cookies
-        .map((c) => c.split(";")[0].trim())
-        .filter(Boolean)
-        .join("; ");
-}
-
-function forwardHeaders(req: NextRequest) {
-    const h: Record<string, string> = {};
-
-    const range = req.headers.get("range");
-    if (range) h["range"] = range;
-
-    const inm = req.headers.get("if-none-match");
-    if (inm) h["if-none-match"] = inm;
-
-    const ims = req.headers.get("if-modified-since");
-    if (ims) h["if-modified-since"] = ims;
-
-    const ua = req.headers.get("user-agent");
-    if (ua) h["user-agent"] = ua;
-
-    const accept = req.headers.get("accept");
-    if (accept) h["accept"] = accept;
-
-    return h;
-}
-
-function copyRespHeaders(res: Response) {
-    const out = new Headers({
-        "Access-Control-Allow-Origin": "*",
-        // evitare cache strani durante transizioni DAI
-        "Cache-Control": "no-store",
-    });
-
-    const pass = [
-        "content-type",
-        "content-length",
-        "content-range",
-        "accept-ranges",
-        "etag",
-        "last-modified",
-        "cache-control", // Importante per non ri-scaricare segmenti durante i glitch
-        "content-encoding",
-        "date" // Alcuni player usano la data per sincronizzare i buffer
-    ];
-
-    for (const k of pass) {
-        const v = res.headers.get(k);
-        if (v) out.set(k, v);
-    }
-
-    return out;
-}
-
 async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> }) {
     const { key } = await ctx.params;
 
-    const session = await readSessionFromKey(decodeURIComponent(key));
+    const client = new ParamountClient();
+    await client.setSessionKey(key);
+
+    const session = client.getSession();
     if (!session) return new NextResponse("Unauthorized", { status: 401 });
 
     const u = req.nextUrl.searchParams.get("u");
     const t = req.nextUrl.searchParams.get("t");
     if (!u || !t) return new NextResponse("Missing u/t", { status: 400 });
 
-    const tok: any = await unseal(t);
-    if (!tok || tok.kind !== "pplus_proxy" || !tok.ls_session) {
-        return new NextResponse("Bad token", { status: 401 });
-    }
-
     let upstreamUrl: URL;
+    let upstreamToken: string;
     try {
         upstreamUrl = new URL(Buffer.from(u, 'base64url').toString('utf-8'));
+        upstreamToken = Buffer.from(t, 'base64url').toString('utf-8');
     } catch {
-        return new NextResponse("Bad upstream url", { status: 400 });
+        return new NextResponse("Bad upstream url or token", { status: 400 });
     }
 
     const headers: Record<string, string> = {
         ...forwardHeaders(req),
     };
-    headers["user-agent"] = "AppleTV6,2/11.1";
+    //headers["user-agent"] = "AppleTV6,2/11.1";
+    headers["user-agent"] = "Paramount+/15.5.0 (com.cbs.ott; androidphone) okhttp/5.1.0";
 
-    // Solo per host che lo richiedono davvero
     if (needsParamountAuth(upstreamUrl.hostname)) {
-        headers["authorization"] = `Bearer ${tok.ls_session}`;
+        headers["authorization"] = `Bearer ${upstreamToken}`;
 
         const cookie = buildCookieHeader(session.cookies);
         if (cookie) headers["cookie"] = cookie;
@@ -116,7 +54,6 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
         cache: "no-store",
     });
 
-    // ✅ Status passthrough (200/206/304 ecc) + header passthrough
     const outHeaders = copyRespHeaders(res);
     if (upstreamUrl.pathname.endsWith(".ts")) {
         outHeaders.set("Content-Type", "video/mp2t");
@@ -129,7 +66,6 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
     outHeaders.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
     outHeaders.set("Cache-Control", "no-cache, no-store, max-age=0, must-revalidate");
 
-    // HEAD senza body
     if (method === "HEAD") {
         return new NextResponse(null, { status: res.status, headers: outHeaders });
     }
