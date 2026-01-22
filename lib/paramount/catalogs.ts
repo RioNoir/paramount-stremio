@@ -30,7 +30,6 @@ export async function getCatalogMetas(args: {
     //Sports
     if (type === "tv" && (id === "pplus_sports_live" || id === "pplus_sports_upcoming")) {
         const listings: any = await getSportListing(session, id);
-        console.log(listings);
         let channelMetas: StremioMeta[] = [];
 
         const metasAll = listings
