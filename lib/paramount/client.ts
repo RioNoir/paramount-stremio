@@ -2,10 +2,7 @@
 
 import crypto from "crypto";
 import {seal, unseal} from "@/lib/auth/jwe";
-
-const BASE_URL = "https://www.paramountplus.com";
-const AT_TOKEN_US = "ABB+XYTJa4Y14QBS5+7jCYvFe04w88I5dxzStu4zlQ4rqTTW/iMZ33tuiqPzzdgMJjQ=";
-const LOCALE_US = "en-us";
+import {PPLUS_BASE_URL, PPLUS_AT_TOKEN_US, PPLUS_LOCALE_US, PPLUS_HEADER} from "@/lib/paramount/utils";
 
 type ParamountUserProfile = { id: number; isMasterProfile: boolean };
 type ParamountUser = { activeProfile: ParamountUserProfile; accountProfiles: ParamountUserProfile[] };
@@ -32,9 +29,9 @@ export class ParamountClient {
         params?: Record<string, any>
     ): Promise<T> {
 
-        const url = new URL(`${BASE_URL}/apps-api${apiPath}`);
-        url.searchParams.set("at", AT_TOKEN_US);
-        url.searchParams.set("locale", LOCALE_US);
+        const url = new URL(`${PPLUS_BASE_URL}/apps-api${apiPath}`);
+        url.searchParams.set("at", PPLUS_AT_TOKEN_US);
+        url.searchParams.set("locale", PPLUS_LOCALE_US);
 
         if (params) {
             for (const [k, v] of Object.entries(params)) {
@@ -54,7 +51,9 @@ export class ParamountClient {
             headers: {
                 "Content-Type": "application/json",
                 "Accept": "application/json",
-                "User-Agent": "Paramount+/15.5.0 (com.cbs.ott; androidphone) okhttp/5.1.0",
+                "User-Agent": PPLUS_HEADER,
+                "Origin": PPLUS_BASE_URL,
+                "Referer": PPLUS_BASE_URL,
                 ...(this.session?.cookies?.length ? { Cookie: this.session.cookies.map((c) => c.split(";")[0]).join("; ") } : {}),
             },
             cache: "no-store",
@@ -79,9 +78,9 @@ export class ParamountClient {
         params?: Record<string, any>
     ): Promise<{ data: T; cookies: string[] }> {
 
-        const url = new URL(`${BASE_URL}/apps-api${apiPath}`);
-        url.searchParams.set("at", AT_TOKEN_US);
-        url.searchParams.set("locale", LOCALE_US);
+        const url = new URL(`${PPLUS_BASE_URL}/apps-api${apiPath}`);
+        url.searchParams.set("at", PPLUS_AT_TOKEN_US);
+        url.searchParams.set("locale", PPLUS_LOCALE_US);
 
         const bodyJson = body ? JSON.stringify(body) : "{}";
 
@@ -104,7 +103,9 @@ export class ParamountClient {
             headers: {
                 "Content-Type": "application/json",
                 "Accept": "application/json",
-                "User-Agent": "Paramount+/15.5.0 (com.cbs.ott; androidphone) okhttp/5.1.0",
+                "User-Agent": PPLUS_HEADER,
+                "Origin": PPLUS_BASE_URL,
+                "Referer": PPLUS_BASE_URL,
                 ...(this.session?.cookies?.length ? { Cookie: this.session.cookies.map((c) => c.split(";")[0]).join("; ") } : {}),
             },
             body: bodyJson,

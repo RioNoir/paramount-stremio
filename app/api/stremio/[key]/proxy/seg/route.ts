@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {ParamountClient} from "@/lib/paramount/client";
-import {needsParamountAuth, buildCookieHeader, forwardHeaders, copyRespHeaders} from "@/lib/paramount/utils";
+import {needsParamountAuth, buildCookieHeader, forwardHeaders, copyRespHeaders, PPLUS_BASE_URL, PPLUS_HEADER} from "@/lib/paramount/utils";
 
 export const runtime = "nodejs";
 export const preferredRegion = "iad1";
@@ -32,8 +32,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
     const headers: Record<string, string> = {
         ...forwardHeaders(req),
     };
-    //headers["user-agent"] = "AppleTV6,2/11.1";
-    headers["user-agent"] = "Paramount+/15.5.0 (com.cbs.ott; androidphone) okhttp/5.1.0";
+    headers["user-agent"] = PPLUS_HEADER;
 
     if (needsParamountAuth(upstreamUrl.hostname)) {
         headers["authorization"] = `Bearer ${upstreamToken}`;
@@ -41,8 +40,8 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
         const cookie = buildCookieHeader(session.cookies);
         if (cookie) headers["cookie"] = cookie;
 
-        headers["origin"] = "https://www.paramountplus.com";
-        headers["referer"] = "https://www.paramountplus.com/";
+        headers["origin"] = PPLUS_BASE_URL;
+        headers["referer"] = PPLUS_BASE_URL;
     }
 
     const method = req.method === "HEAD" ? "HEAD" : "GET";

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {ParamountClient} from "@/lib/paramount/client";
-import {needsParamountAuth, buildCookieHeader, guessBaseOrigin} from "@/lib/paramount/utils";
+import {needsParamountAuth, buildCookieHeader, guessBaseOrigin, PPLUS_BASE_URL, PPLUS_HEADER} from "@/lib/paramount/utils";
 
 export const runtime = "nodejs";
 export const preferredRegion = "iad1";
@@ -150,8 +150,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
 
     const headers: Record<string, string> = {
         "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
-        //"user-agent": "AppleTV6,2/11.1",
-        "user-agent": "Paramount+/15.5.0 (com.cbs.ott; androidphone) okhttp/5.1.0",
+        "user-agent": PPLUS_HEADER,
         accept: "application/vnd.apple.mpegurl, application/x-mpegURL, */*",
     };
 
@@ -161,11 +160,11 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
         const cookie = buildCookieHeader(session.cookies);
         if (cookie) headers["cookie"] = cookie;
 
-        headers["origin"] = "https://www.paramountplus.com";
-        headers["referer"] = "https://www.paramountplus.com/";
+        headers["origin"] = PPLUS_BASE_URL;
+        headers["referer"] = PPLUS_BASE_URL;
     }
 
-    const method = req.method === "HEAD" ? "HEAD" : "GET";
+    const method = "GET";
 
     const res = await fetch(upstreamUrl.toString(), {
         method,
@@ -174,16 +173,15 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
         cache: "no-store",
     });
 
-    if (method === "HEAD") {
+    if (req.method === "HEAD") {
         const h = new Headers({
             "Allow": "GET, HEAD, OPTIONS",
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            "Cache-Control": "no-cache, no-store, max-age=0, must-revalidate"
+            "Cache-Control": "no-cache, no-store, max-age=0, must-revalidate",
+            "Content-Type": "application/vnd.apple.mpegurl",
         });
-        const ct = res.headers.get("content-type");
-        if (ct) h.set("Content-Type", ct);
         const cc = res.headers.get("cache-control");
         if (cc) h.set("Cache-Control", cc);
         return new NextResponse(null, { status: res.status, headers: h });

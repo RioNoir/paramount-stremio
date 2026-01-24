@@ -1,4 +1,7 @@
 // lib/mediaflow.ts
+import {ParamountSession} from "@/lib/paramount/client";
+import {PPLUS_BASE_URL, PPLUS_HEADER} from "@/lib/paramount/utils";
+
 export type MediaFlowConfig = {
     url: string;
     password: string;
@@ -29,15 +32,14 @@ export function getMediaFlowConfig(): MediaFlowConfig | null {
     };
 }
 
-export function wrapUrlWithMediaFlow(destinationUrl: URL, session: any, lsSession: string, mpegts: boolean): string | null {
+export function wrapUrlWithMediaFlow(destinationUrl: URL, session: ParamountSession, lsSession: string, mpegts: boolean): string | null {
     const cfg = getMediaFlowConfig();
     if (!cfg) return null;
 
     const headers: Record<string, string> = {
-        //"user-agent": "AppleTV6,2/11.1",
-        "user-agent": "Paramount+/15.5.0 (com.cbs.ott; androidphone) okhttp/5.1.0",
-        "origin": "https://www.paramountplus.com",
-        "referer": "https://www.paramountplus.com/",
+        "user-agent": PPLUS_HEADER,
+        "origin": PPLUS_BASE_URL,
+        "referer": PPLUS_BASE_URL,
     };
 
     headers["authorization"] = `Bearer ${lsSession}`;
