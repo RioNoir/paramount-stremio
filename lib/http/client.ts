@@ -12,7 +12,7 @@ export class HttpClient {
             : new ProxyAgent();
 
         this.client = axios.create({
-            timeout: 15000,
+            timeout: 30000,
             httpAgent: agent,
             httpsAgent: agent,
             proxy: false,
