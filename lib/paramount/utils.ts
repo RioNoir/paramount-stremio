@@ -1,10 +1,20 @@
 import {NextRequest} from "next/server";
+import {httpClient} from "@/lib/http/client";
 
 export const PPLUS_BASE_URL = "https://www.paramountplus.com";
 export const PPLUS_AT_TOKEN_US = "ABCVvU1Pv0BRR9aWYFLAm+m8bcIJXm7a9GYpMwXFtDuq1P5ARAg6o60yilK8oQ2Eaxc=";
 export const PPLUS_LOCALE_US = "en-us";
 export const PPLUS_HEADER = "Paramount+/16.4.1 (com.cbs.ott; androidphone) okhttp/5.1.0"
 export const PPLUS_IMG_BASE = "https://wwwimage-us.pplusstatic.com/base/";
+
+export async function checkMyIp() {
+    try {
+        const res = await httpClient.get('https://ipinfo.io/json');
+        console.log(`[GeoCheck] IP: ${res.data.ip}, City: ${res.data.city}, Country: ${res.data.country}, Org: ${res.data.org}`);
+    } catch (e) {
+        console.error("Proxy Not Working");
+    }
+}
 
 export function stripJsonSuffix(s: string) {
     return s.endsWith(".json") ? s.slice(0, -5) : s;
@@ -45,7 +55,7 @@ export function forwardHeaders(req: NextRequest) {
     return h;
 }
 
-export function copyRespHeaders(res: Response) {
+export function copyRespHeaders(headers: Headers) {
     const out = new Headers({
         "Access-Control-Allow-Origin": "*",
         "Cache-Control": "no-cache, no-store, max-age=0, must-revalidate",
@@ -64,7 +74,7 @@ export function copyRespHeaders(res: Response) {
     ];
 
     for (const k of pass) {
-        const v = res.headers.get(k);
+        const v = headers.get(k);
         if (v) out.set(k, v);
     }
 

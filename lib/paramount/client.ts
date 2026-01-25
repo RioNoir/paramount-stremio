@@ -1,8 +1,7 @@
-// lib/paramount/client.ts
-
 import crypto from "crypto";
 import {seal, unseal} from "@/lib/auth/jwe";
 import {PPLUS_BASE_URL, PPLUS_AT_TOKEN_US, PPLUS_LOCALE_US, PPLUS_HEADER} from "@/lib/paramount/utils";
+import { httpClient } from "@/lib/http/client";
 
 type ParamountUserProfile = { id: number; isMasterProfile: boolean };
 type ParamountUser = { activeProfile: ParamountUserProfile; accountProfiles: ParamountUserProfile[] };
@@ -46,8 +45,7 @@ export class ParamountClient {
             console.log("[PPLUS] URL", url.toString());
         }
 
-        const res = await fetch(url.toString(), {
-            method: "GET",
+        const {status: status, data: json} = await httpClient.get(url.toString(), {
             headers: {
                 "Content-Type": "application/json",
                 "Accept": "application/json",
@@ -56,20 +54,14 @@ export class ParamountClient {
                 "Referer": PPLUS_BASE_URL,
                 ...(this.session?.cookies?.length ? { Cookie: this.session.cookies.map((c) => c.split(";")[0]).join("; ") } : {}),
             },
-            cache: "no-store",
         });
 
-        const text = await res.text().catch(() => "");
         if (debug) {
-            console.log("[PPLUS] Status", res.status);
-            console.log("[PPLUS] Body first 300", text.slice(0, 300));
+            console.log("[PPLUS] Status", status);
+            console.log("[PPLUS] Body first 300", json.slice(0, 300));
         }
 
-        if (!res.ok) {
-            throw new Error(`Paramount API ${res.status} ${apiPath} ${text.slice(0, 200)}`);
-        }
-
-        return JSON.parse(text) as T;
+        return json as T;
     }
 
     private async postJson<T>(
@@ -98,29 +90,25 @@ export class ParamountClient {
             console.log("[PPLUS] BODY", bodyJson);
         }
 
-        const res = await fetch(url.toString(), {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-                "User-Agent": PPLUS_HEADER,
-                "Origin": PPLUS_BASE_URL,
-                "Referer": PPLUS_BASE_URL,
-                ...(this.session?.cookies?.length ? { Cookie: this.session.cookies.map((c) => c.split(";")[0]).join("; ") } : {}),
+        const {status: status, data: json, cookies: cookies} = await httpClient.post(url.toString(),
+            bodyJson,
+            {
+                headers: {
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                    "User-Agent": PPLUS_HEADER,
+                    "Origin": PPLUS_BASE_URL,
+                    "Referer": PPLUS_BASE_URL,
+                    ...(this.session?.cookies?.length ? { Cookie: this.session.cookies.map((c) => c.split(";")[0]).join("; ") } : {}),
             },
-            body: bodyJson,
-            cache: "no-store",
         });
 
-        const text = await res.text().catch(() => "");
         if (debug) {
-            console.log("[PPLUS] Status", res.status);
-            console.log("[PPLUS] Body first 300", text.slice(0, 300));
+            console.log("[PPLUS] Status", status);
+            console.log("[PPLUS] Body first 300", json.slice(0, 300));
         }
 
-        const cookies = this.pickSetCookie(res.headers);
-        if (!res.ok) throw new Error(`Paramount POST failed ${res.status}`);
-        const data = JSON.parse(text) as T;
+        const data = json as T;
         return { data, cookies };
     }
 
@@ -173,14 +161,6 @@ export class ParamountClient {
             expiresAt: null,
             profileId: null,
         });
-    }
-
-    private pickSetCookie(headers: Headers): string[] {
-        const sc = typeof (headers as any).getSetCookie === "function" ? (headers as any).getSetCookie() : null;
-        if (Array.isArray(sc) && sc.length) return sc;
-        const single = headers.get("set-cookie");
-        if (!single) return [];
-        return [single];
     }
 
     /** Authentication ***/

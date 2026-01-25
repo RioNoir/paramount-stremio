@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {ParamountClient} from "@/lib/paramount/client";
-import {needsParamountAuth, buildCookieHeader, guessBaseOrigin, PPLUS_BASE_URL, PPLUS_HEADER} from "@/lib/paramount/utils";
+import {needsParamountAuth, buildCookieHeader, guessBaseOrigin, checkMyIp, PPLUS_BASE_URL, PPLUS_HEADER} from "@/lib/paramount/utils";
+import {httpClient} from "@/lib/http/client";
 
 export const runtime = "nodejs";
 export const preferredRegion = "iad1";
@@ -164,13 +165,9 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
         headers["referer"] = PPLUS_BASE_URL;
     }
 
-    const method = "GET";
 
-    const res = await fetch(upstreamUrl.toString(), {
-        method,
-        headers,
-        redirect: "follow",
-        cache: "no-store",
+    const {status, data} = await httpClient.get(upstreamUrl.toString(), {
+        headers: headers
     });
 
     if (req.method === "HEAD") {
@@ -182,14 +179,12 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
             "Cache-Control": "no-cache, no-store, max-age=0, must-revalidate",
             "Content-Type": "application/vnd.apple.mpegurl",
         });
-        const cc = res.headers.get("cache-control");
-        if (cc) h.set("Cache-Control", cc);
-        return new NextResponse(null, { status: res.status, headers: h });
+        return new NextResponse(null, { status: status, headers: h });
     }
 
-    const text = await res.text();
     const baseOrigin = guessBaseOrigin(req);
 
+    const text = data.toString();
     const rewritten = rewriteM3U8({
         text,
         upstreamUrl,
@@ -208,7 +203,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
         //"Content-Type": "text/plain",
     });
 
-    return new NextResponse(rewritten, { status: res.status, headers: outHeaders });
+    return new NextResponse(rewritten, { status: status, headers: outHeaders });
 }
 
 export async function GET(req: NextRequest, ctx: any) {

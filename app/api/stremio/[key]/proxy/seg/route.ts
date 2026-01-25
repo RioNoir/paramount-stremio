@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {ParamountClient} from "@/lib/paramount/client";
-import {needsParamountAuth, buildCookieHeader, forwardHeaders, copyRespHeaders, PPLUS_BASE_URL, PPLUS_HEADER} from "@/lib/paramount/utils";
+import {needsParamountAuth, buildCookieHeader, forwardHeaders, copyRespHeaders, checkMyIp, PPLUS_BASE_URL, PPLUS_HEADER} from "@/lib/paramount/utils";
+import {httpClient} from "@/lib/http/client";
 
 export const runtime = "nodejs";
 export const preferredRegion = "iad1";
@@ -46,14 +47,12 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
 
     const method = req.method === "HEAD" ? "HEAD" : "GET";
 
-    const res = await fetch(upstreamUrl.toString(), {
-        method,
-        headers,
-        redirect: "follow",
-        cache: "no-store",
+    const {status: status, data: data, headers: resHeaders} = await httpClient.get(upstreamUrl.toString(), {
+        headers: headers,
+        responseType: 'arraybuffer'
     });
 
-    const outHeaders = copyRespHeaders(res);
+    const outHeaders = copyRespHeaders(resHeaders);
     if (upstreamUrl.pathname.endsWith(".ts")) {
         outHeaders.set("Content-Type", "video/mp2t");
     } else if (upstreamUrl.pathname.endsWith(".m4s")) {
@@ -66,10 +65,10 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
     outHeaders.set("Cache-Control", "no-cache, no-store, max-age=0, must-revalidate");
 
     if (method === "HEAD") {
-        return new NextResponse(null, { status: res.status, headers: outHeaders });
+        return new NextResponse(null, { status: status, headers: outHeaders });
     }
 
-    return new NextResponse(res.body, { status: res.status, headers: outHeaders });
+    return new NextResponse(data, { status: status, headers: outHeaders });
 }
 
 export async function GET(req: NextRequest, ctx: any) {
