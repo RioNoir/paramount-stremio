@@ -58,7 +58,7 @@ export class ParamountClient {
 
         if (debug) {
             console.log("[PPLUS] Status", status);
-            console.log("[PPLUS] Body first 300", json.slice(0, 300));
+            console.log("[PPLUS] Body first 300", json.toString().slice(0, 300));
         }
 
         return json as T;
@@ -105,7 +105,7 @@ export class ParamountClient {
 
         if (debug) {
             console.log("[PPLUS] Status", status);
-            console.log("[PPLUS] Body first 300", json.slice(0, 300));
+            console.log("[PPLUS] Body first 300", json.toString().slice(0, 300));
         }
 
         const data = json as T;
