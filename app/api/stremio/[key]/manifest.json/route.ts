@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { ParamountClient } from "@/lib/paramount/client";
+import packageInfo from '@/package.json';
 
 export const runtime = "nodejs";
 
@@ -17,13 +18,13 @@ export async function GET(_req: Request, ctx: { params: Promise<{ key: string }>
     const catalogs: any[] = [
         {
             type: "tv",
-            id: "pplus_sports_live",
-            name: "Paramount+ Sports (Live)",
+            id: "pplus_live",
+            name: "Paramount+ Live",
             extra: [{ name: "search" }, { name: "skip" }],
         },
         {
             type: "tv",
-            id: "pplus_sports_upcoming",
+            id: "pplus_sports",
             name: "Paramount+ Sports",
             extra: [{ name: "search" }, { name: "skip" }],
         }
@@ -36,9 +37,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ key: string }>
 
     const manifest = {
         id: "org.pplus.stremio",
-        version: "1.0.0",
-        name: "Paramount+ (US)",
-        description: `Unofficial Paramount+ US Addon for Stremio. (Profile ID: ${session.profileId})`,
+        version: packageInfo.version,
+        name: "Paramount+",
+        description: `Unofficial Paramount+ Addon for Stremio. (Profile ID: ${session.profileId})`,
         logo: logo,
         background: background,
         resources: ["catalog", "meta", "stream"],

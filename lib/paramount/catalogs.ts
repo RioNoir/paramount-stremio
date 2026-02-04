@@ -1,7 +1,7 @@
-import { ParamountClient, ParamountSession } from "@/lib/paramount/client";
-import { StremioMeta } from "@/lib/stremio/types";
-import {buildLinearMeta, getSportListing, mapSportListingToMeta} from "@/lib/paramount/types/sports";
-import {list} from "postcss";
+import {ParamountSession} from "@/lib/paramount/client";
+import {StremioMeta} from "@/lib/stremio/types";
+import {getSportListing, mapSportListingToMeta} from "@/lib/paramount/types/sports";
+import {getLiveListing, mapLiveListingToMeta} from "@/lib/paramount/types/live";
 
 function stripJsonSuffix(s: string) {
     return s.endsWith(".json") ? s.slice(0, -5) : s;
@@ -27,46 +27,30 @@ export async function getCatalogMetas(args: {
 
     //TODO: movies and shows
 
-    //Sports
-    if (type === "tv" && (id === "pplus_sports_live" || id === "pplus_sports_upcoming")) {
-        const listings: any = await getSportListing(session, id);
-        let channelMetas: StremioMeta[] = [];
+    //Live
+    if (type === "tv" && id === "pplus_live") {
+        const liveListings = await getLiveListing(session);
+        const liveMetas = liveListings.map(mapLiveListingToMeta) as StremioMeta[];
 
-        const metasAll = listings
-            .map(mapSportListingToMeta)
-            .filter(Boolean) as StremioMeta[];
-        metasAll.sort((a, b) => {
+        const filteredBySearch = search
+            ? liveMetas.filter((m) => safeLower(m.name).includes(search))
+            : liveMetas;
+
+        return filteredBySearch.slice(skip, skip + pageSize);
+    }
+
+    //Sport
+    if (type === "tv" && id === "pplus_sports") {
+        const sportListings: any = await getSportListing(session, false);
+        const sportMetas = sportListings.map(mapSportListingToMeta).filter(Boolean) as StremioMeta[];
+
+        sportMetas.sort((a, b) => {
             return (a.releaseInfo ?? "").localeCompare(b.releaseInfo ?? "");
         });
 
-        //Harcoded live channels
-        if (id === "pplus_sports_live") {
-            const alwaysLiveChannels = [
-                {slug: "cbssportshq", fallbackName: "CBS Sports HQ"},
-                {slug: "golazo", fallbackName: "GOLAZO Network"},
-            ];
-            channelMetas = await Promise.all(
-                alwaysLiveChannels.map(async (c): Promise<StremioMeta> => {
-                    const full = await buildLinearMeta(session, c.slug);
-                    return {
-                        id: `pplus:linear:${c.slug}`,
-                        type: "tv",
-                        name: full?.name || c.fallbackName,
-                        logo: full?.logo || "",
-                        poster: full?.poster || "",
-                        posterShape: "landscape",
-                        description: full?.description || "LIVE • Linear channel",
-                        releaseInfo: String(full?.releaseInfo || "LIVE"),
-                        background: full?.poster || ""
-                    };
-                })
-            );
-        }
-
-        const combined = [...channelMetas, ...metasAll];
         const filteredBySearch = search
-            ? combined.filter((m) => safeLower(m.name).includes(search))
-            : combined;
+            ? sportMetas.filter((m) => safeLower(m.name).includes(search))
+            : sportMetas;
 
         return filteredBySearch.slice(skip, skip + pageSize);
     }

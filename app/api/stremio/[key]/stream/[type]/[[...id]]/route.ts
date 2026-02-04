@@ -3,9 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { ParamountClient } from "@/lib/paramount/client";
 import { parsePplusId } from "@/lib/paramount/mapping";
 import { stripJsonSuffix } from "@/lib/paramount/utils";
-import { resolveSportStream, resolveLinearStream } from "@/lib/paramount/types/sports";
+import { resolveSportStream } from "@/lib/paramount/types/sports";
+import { resolveLiveStream } from "@/lib/paramount/types/live";
 import { wrapUrlWithMediaFlow } from "@/lib/mediaflowproxy/mediaflowproxy";
-import { seal } from "@/lib/auth/jwe";
 
 export const runtime = "nodejs";
 export const preferredRegion = "iad1";
@@ -31,12 +31,13 @@ export async function GET(
     let streamData = null;
     if (parsed.kind === "sport") {
         streamData = await resolveSportStream(session, parsed.key);
-    } else if (parsed.kind === "linear") {
-        streamData = await resolveLinearStream(session, parsed.key);
+    } else if (parsed.kind === "live") {
+        streamData = await resolveLiveStream(session, parsed.key);
     }
     if (!streamData) return NextResponse.json({ streams: [] }, { status: 200 });
 
 
+    const lsUrl = streamData.lsUrl ?? "";
     const lsSession = streamData.lsSession;
     const streamingUrl = new URL(streamData.streamingUrl);
     const streamingTitle = streamData.streamingTitle;
@@ -47,37 +48,66 @@ export async function GET(
         const url = process.env.BASE_URL || req.url || "http://localhost:3000";
         const base = new URL(url);
 
-        //HLS internal proxy stream
-        const internal = new URL(`/api/stremio/${encodeURIComponent(key)}/proxy/hls`, base.origin);
-        internal.searchParams.set("u", Buffer.from(streamingUrl.toString()).toString('base64url'));
-        internal.searchParams.set("t", Buffer.from(lsSession.toString()).toString('base64url'));
-        if (internal) {
-            streams.push({
-                name: "Paramount+ (US)",
-                title: `${streamingTitle} \n🎞 HLS`,
-                url: internal.toString(),
-                isLive: true,
-                notWebReady: true
-            });
-        }
+        if(streamingUrl.toString().includes('.m3u8')) {
+            //HLS internal proxy stream
+            const internal = new URL(`/api/stremio/${encodeURIComponent(key)}/proxy/hls`, base.origin);
+            internal.searchParams.set("u", Buffer.from(streamingUrl.toString()).toString('base64url'));
+            internal.searchParams.set("t", Buffer.from(lsSession.toString()).toString('base64url'));
+            if (internal) {
+                streams.push({
+                    name: "Paramount+ (US)",
+                    title: `${streamingTitle} \n🎞 HLS`,
+                    url: internal.toString(),
+                    isLive: true,
+                    notWebReady: false
+                });
+            }
 
-        if (process.env.MFP_URL) {
-            let external = wrapUrlWithMediaFlow(streamingUrl, session, lsSession, true);
-            streams.push({
-                name: "Paramount+ (US)",
-                title: `${streamingTitle} \n🎞 MPEG-TS (MFP Proxy)`,
-                url: external?.toString(),
-                isLive: true,
-                notWebReady: true
-            });
-            external = wrapUrlWithMediaFlow(streamingUrl, session, lsSession, false);
-            streams.push({
-                name: "Paramount+ (US)",
-                title: `${streamingTitle} \n🎞 HLS (MFP Proxy)`,
-                url: external?.toString(),
-                isLive: true,
-                notWebReady: true
-            });
+            if (process.env.MFP_URL) {
+                let external = await wrapUrlWithMediaFlow(streamingUrl, session, lsSession, true);
+                streams.push({
+                    name: "Paramount+ (US)",
+                    title: `${streamingTitle} \n🎞 MPEG-TS (MFP Proxy)`,
+                    url: external?.toString(),
+                    isLive: true,
+                    notWebReady: false
+                });
+                external = await wrapUrlWithMediaFlow(streamingUrl, session, lsSession, false);
+                streams.push({
+                    name: "Paramount+ (US)",
+                    title: `${streamingTitle} \n🎞 HLS (MFP Proxy)`,
+                    url: external?.toString(),
+                    isLive: true,
+                    notWebReady: false
+                });
+            }
+
+        }else if(streamingUrl.toString().includes('.mpd')){
+            //MPD internal proxy stream
+            const license = new URL(`/api/stremio/${encodeURIComponent(key)}/proxy/license`, base.origin);
+            license.searchParams.set("u", Buffer.from(lsUrl.toString()).toString('base64url'));
+
+            const internal = new URL(`/api/stremio/${encodeURIComponent(key)}/proxy/mpd`, base.origin);
+            internal.searchParams.set("u", Buffer.from(streamingUrl.toString()).toString('base64url'));
+            internal.searchParams.set("t", Buffer.from(lsSession.toString()).toString('base64url'));
+            if (internal) {
+                streams.push({
+                    name: "Paramount+ (US)",
+                    title: `${streamingTitle} \n🎞 MPD`,
+                    url: internal.toString(),
+                    isLive: true,
+                    notWebReady: true,
+                    behaviorHints: {
+                        configuration: {
+                            drm: {
+                                widevine: {
+                                    licenseUrl: license.toString()
+                                }
+                            }
+                        }
+                    }
+                });
+            }
         }
     }
 

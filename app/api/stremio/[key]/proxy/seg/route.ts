@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {ParamountClient} from "@/lib/paramount/client";
-import {needsParamountAuth, buildCookieHeader, forwardHeaders, copyRespHeaders, checkMyIp, PPLUS_BASE_URL, PPLUS_HEADER} from "@/lib/paramount/utils";
+import {needsParamountAuth, buildCookieHeader, forwardHeaders, copyRespHeaders, PPLUS_BASE_URL, PPLUS_HEADER} from "@/lib/paramount/utils";
 import {httpClient} from "@/lib/http/client";
 
 export const runtime = "nodejs";
@@ -19,12 +19,16 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
 
     const u = req.nextUrl.searchParams.get("u");
     const t = req.nextUrl.searchParams.get("t");
+    const f = req.nextUrl.searchParams.get("f");
     if (!u || !t) return new NextResponse("Missing u/t", { status: 400 });
 
     let upstreamUrl: URL;
     let upstreamToken: string;
     try {
-        upstreamUrl = new URL(Buffer.from(u, 'base64url').toString('utf-8'));
+        let baseUrl = Buffer.from(u, 'base64url').toString('utf-8');
+        baseUrl = f ? `${baseUrl}${f}` : baseUrl;
+
+        upstreamUrl = new URL(baseUrl);
         upstreamToken = Buffer.from(t, 'base64url').toString('utf-8');
     } catch {
         return new NextResponse("Bad upstream url or token", { status: 400 });
@@ -33,7 +37,10 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
     const headers: Record<string, string> = {
         ...forwardHeaders(req),
     };
-    headers["user-agent"] = PPLUS_HEADER;
+    headers["user-agent"] = await PPLUS_HEADER();
+    if (req.headers.has("range")) {
+        headers["range"] = req.headers.get("range")!;
+    }
 
     if (needsParamountAuth(upstreamUrl.hostname)) {
         headers["authorization"] = `Bearer ${upstreamToken}`;
@@ -46,22 +53,26 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
     }
 
     const method = req.method === "HEAD" ? "HEAD" : "GET";
-
     const {status: status, data: data, headers: resHeaders} = await httpClient.get(upstreamUrl.toString(), {
         headers: headers,
-        responseType: 'arraybuffer'
+        responseType: 'arraybuffer',
+        validateStatus: (s) => s < 500
     });
 
     const outHeaders = copyRespHeaders(resHeaders);
-    if (upstreamUrl.pathname.endsWith(".ts")) {
+    const pathname = upstreamUrl.pathname.toLowerCase();
+    if (pathname.endsWith(".ts")) {
         outHeaders.set("Content-Type", "video/mp2t");
-    } else if (upstreamUrl.pathname.endsWith(".m4s")) {
-        outHeaders.set("Content-Type", "video/iso.segment");
+    } else if (pathname.endsWith(".m4s") || pathname.endsWith(".mp4")) {
+        outHeaders.set("Content-Type", "video/mp4");
+    } else if (pathname.endsWith(".m4a")) {
+        outHeaders.set("Content-Type", "audio/mp4");
     }
     outHeaders.set("Allow", "GET, HEAD, OPTIONS");
     outHeaders.set("Access-Control-Allow-Origin", "*");
     outHeaders.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
     outHeaders.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    outHeaders.set("Access-Control-Expose-Headers", "Content-Length, Content-Range");
     outHeaders.set("Cache-Control", "no-cache, no-store, max-age=0, must-revalidate");
 
     if (method === "HEAD") {

@@ -5,11 +5,13 @@ services:
       dockerfile: Dockerfile
     container_name: Paramount
     environment:
-      - BASE_URL=http://localhost:3002
+      - BASE_URL=http://localhost:7850
+      - PORT=7850
       - KEY_SECRET=[random]
+      - FORCE_HQ=
       - HTTP_PROXY=
       - MFP_URL=
       - MFP_PASS=
     ports:
-      - "3002:3000"
+      - "7850:7850"
     restart: unless-stopped

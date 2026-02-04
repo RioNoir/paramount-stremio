@@ -55,23 +55,23 @@ bun dev
 ```
 docker build -t paramount-stremio https://github.com/RioNoir/paramount-stremio.git#main
 
-docker run --name Paramount-Stremio -e BASE_URL=http://localhost:3000 -e KEY_SECRET=[random-key] -e TIMEZONE=Europe/Rome -p 3000:3000 -d paramount-stremio
+docker run --name Paramount-Stremio -e BASE_URL=http://localhost:7850 -e KEY_SECRET=[random-key] -e TIMEZONE=Europe/Rome -p 3000:3000 -d paramount-stremio
 ```
 
 ### Install with docker compose (recommended)
 
 ```
 services:
-  paramount-stremio :
+  paramount-stremio:
     build: https://github.com/RioNoir/paramount-stremio.git#main
     container_name: Paramount-Stremio
     environment:
-      - BASE_URL=http://localhost:3000
+      - BASE_URL=http://localhost:7850
+      - PORT=7850
       - KEY_SECRET=[random-key]
-      - TIMEZONE=Europe/Rome
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "7850:7850"
 ```
 
 

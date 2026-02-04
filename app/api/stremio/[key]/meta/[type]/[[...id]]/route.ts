@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { ParamountClient } from "@/lib/paramount/client";
 import { parsePplusId } from "@/lib/paramount/mapping";
 import { stripJsonSuffix } from "@/lib/paramount/utils";
-import { buildSportMeta, buildLinearMeta } from "@/lib/paramount/types/sports";
+import { buildSportMeta } from "@/lib/paramount/types/sports";
+import { buildLiveMeta } from "@/lib/paramount/types/live";
 
 export const runtime = "nodejs";
 
@@ -30,8 +31,8 @@ export async function GET(
         return NextResponse.json({ meta }, { status: 200, headers: { "Access-Control-Allow-Origin": "*" } });
     }
 
-    if (parsed.kind === "linear") {
-        const meta = await buildLinearMeta(session, parsed.key);
+    if (parsed.kind === "live") {
+        const meta = await buildLiveMeta(session, parsed.key);
         return NextResponse.json({ meta }, { status: 200, headers: { "Access-Control-Allow-Origin": "*" } });
     }
 

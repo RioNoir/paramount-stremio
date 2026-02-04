@@ -32,12 +32,12 @@ export function getMediaFlowConfig(): MediaFlowConfig | null {
     };
 }
 
-export function wrapUrlWithMediaFlow(destinationUrl: URL, session: ParamountSession, lsSession: string, mpegts: boolean): string | null {
+export async function wrapUrlWithMediaFlow(destinationUrl: URL, session: ParamountSession, lsSession: string, mpegts: boolean): Promise<string | null> {
     const cfg = getMediaFlowConfig();
     if (!cfg) return null;
 
     const headers: Record<string, string> = {
-        "user-agent": PPLUS_HEADER,
+        "user-agent": await PPLUS_HEADER(),
         "origin": PPLUS_BASE_URL,
         "referer": PPLUS_BASE_URL,
     };

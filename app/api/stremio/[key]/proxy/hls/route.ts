@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {ParamountClient} from "@/lib/paramount/client";
-import {needsParamountAuth, buildCookieHeader, guessBaseOrigin, checkMyIp, PPLUS_BASE_URL, PPLUS_HEADER} from "@/lib/paramount/utils";
+import {needsParamountAuth, buildCookieHeader, guessBaseOrigin, PPLUS_BASE_URL, PPLUS_HEADER} from "@/lib/paramount/utils";
 import {httpClient} from "@/lib/http/client";
 
 export const runtime = "nodejs";
@@ -28,7 +28,7 @@ function rewriteM3U8(params: {
 
     const lines = text.split("\n");
 
-    // --- 1. MASTER MANIFEST ---
+    // --- MASTER MANIFEST ---
     if (text.includes("#EXT-X-STREAM-INF")) {
         const headerLines: string[] = [];
         const streamInfVariants: { bandwidth: number; info: string; url: string }[] = [];
@@ -40,11 +40,9 @@ function rewriteM3U8(params: {
             if (!line) continue;
 
             if (line.startsWith("#EXT-X-STREAM-INF")) {
-                // Estrae la bandwidth per l'ordinamento
                 const bwMatch = line.match(/BANDWIDTH=(\d+)/);
                 const bandwidth = bwMatch ? parseInt(bwMatch[1], 10) : 0;
 
-                // La riga successiva è l'URL della variante
                 const nextLine = lines[i + 1]?.trim();
                 if (nextLine && !nextLine.startsWith("#")) {
                     streamInfVariants.push({
@@ -52,10 +50,9 @@ function rewriteM3U8(params: {
                         info: line,
                         url: toProxy(new URL(nextLine, upstreamUrl).toString())
                     });
-                    i++; // Salta la riga dell'URL nel ciclo principale
+                    i++;
                 }
             } else if (line.startsWith("#EXT-X-I-FRAME-STREAM-INF")) {
-                // Estrae la bandwidth per l'ordinamento
                 const bwMatch = line.match(/BANDWIDTH=(\d+)/);
                 const bandwidth = bwMatch ? parseInt(bwMatch[1], 10) : 0;
 
@@ -79,12 +76,12 @@ function rewriteM3U8(params: {
             }
         }
 
-        // --- ORDINAMENTO ---
-        // Ordina dalla bandwidth più alta alla più bassa
-        streamInfVariants.sort((a, b) => b.bandwidth - a.bandwidth);
-        frameStreamInfVariants.sort((a, b) => b.bandwidth - a.bandwidth);
+        const forceHq = process.env.FORCE_HQ || false;
+        if(forceHq) {
+            streamInfVariants.sort((a, b) => b.bandwidth - a.bandwidth);
+            frameStreamInfVariants.sort((a, b) => b.bandwidth - a.bandwidth);
+        }
 
-        // Ricostruisce il file
         const outMaster = [...headerLines];
         streamInfVariants.forEach(v => {
             outMaster.push(v.info);
@@ -98,7 +95,7 @@ function rewriteM3U8(params: {
         return outMaster.join("\n");
     }
 
-    // --- 2. MEDIA PLAYLIST (Rimane invariata) ---
+    // --- MEDIA PLAYLIST ---
     const outMedia: string[] = [];
     for (let line of lines) {
         line = line.trim();
@@ -151,7 +148,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
 
     const headers: Record<string, string> = {
         "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
-        "user-agent": PPLUS_HEADER,
+        "user-agent": await PPLUS_HEADER(),
         accept: "application/vnd.apple.mpegurl, application/x-mpegURL, */*",
     };
 

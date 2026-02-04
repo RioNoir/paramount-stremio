@@ -13,8 +13,18 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Paramount+ → Stremio",
-  description: "Configure your addon",
+    title: "Paramount+ → Stremio",
+    description: "Configure your addon",
+    icons: {
+        icon: [
+            {
+                url: '/favicon.ico',
+                href: '/favicon.ico',
+            },
+        ],
+        shortcut: '/icon.png',
+        apple: '/icon.png',
+    },
 };
 
 export default function RootLayout({

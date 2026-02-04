@@ -1,6 +1,11 @@
 import crypto from "crypto";
 import {seal, unseal} from "@/lib/auth/jwe";
-import {PPLUS_BASE_URL, PPLUS_AT_TOKEN_US, PPLUS_LOCALE_US, PPLUS_HEADER} from "@/lib/paramount/utils";
+import {
+    PPLUS_BASE_URL,
+    PPLUS_AT_TOKEN_US,
+    PPLUS_LOCALE_US,
+    PPLUS_HEADER
+} from "@/lib/paramount/utils";
 import { httpClient } from "@/lib/http/client";
 
 type ParamountUserProfile = { id: number; isMasterProfile: boolean };
@@ -45,11 +50,12 @@ export class ParamountClient {
             console.log("[PPLUS] URL", url.toString());
         }
 
+        const userAgent = await PPLUS_HEADER();
         const {status: status, data: json} = await httpClient.get(url.toString(), {
             headers: {
                 "Content-Type": "application/json",
                 "Accept": "application/json",
-                "User-Agent": PPLUS_HEADER,
+                "User-Agent": userAgent,
                 "Origin": PPLUS_BASE_URL,
                 "Referer": PPLUS_BASE_URL,
                 ...(this.session?.cookies?.length ? { Cookie: this.session.cookies.map((c) => c.split(";")[0]).join("; ") } : {}),
@@ -90,13 +96,14 @@ export class ParamountClient {
             console.log("[PPLUS] BODY", bodyJson);
         }
 
+        const userAgent = await PPLUS_HEADER();
         const {status: status, data: json, cookies: cookies} = await httpClient.post(url.toString(),
             bodyJson,
             {
                 headers: {
                     "Content-Type": "application/json",
                     "Accept": "application/json",
-                    "User-Agent": PPLUS_HEADER,
+                    "User-Agent": userAgent,
                     "Origin": PPLUS_BASE_URL,
                     "Referer": PPLUS_BASE_URL,
                     ...(this.session?.cookies?.length ? { Cookie: this.session.cookies.map((c) => c.split(";")[0]).join("; ") } : {}),
@@ -245,6 +252,19 @@ export class ParamountClient {
         );
     }
 
+    async getLinkPlatformUrl(contentId: string): Promise<any>{
+        const url = new URL(`http://link.theplatform.com/s/dJ5BDC/media/guid/${this.session?.profileId}/${contentId}`);
+        url.searchParams.set("auth", PPLUS_AT_TOKEN_US);
+        url.searchParams.set("formats", "MPEG4,M3U");
+        url.searchParams.set("assetTypes", "isml");
+        url.searchParams.set("policy", "138241");
+        url.searchParams.set("tracking", "true");
+        //url.searchParams.set("locale", PPLUS_LOCALE_US);
+        const {data: xml} = await httpClient.get(url.toString());
+        const match = xml.toString().match(/<src>([^<]+)<\/src>/);
+        return match ? match[1] : null;
+    }
+
     /** Catalogs **/
     async getSportsLiveUpcoming(params: Record<string, any> = {}): Promise<any[]> {
         return await this.getJson<any>(
@@ -253,6 +273,18 @@ export class ParamountClient {
                 platformType: "androidtv",
                 rows: 300,
                 start: 0,
+                ...params,
+            }
+        );
+    }
+
+    async getLiveChannels(params: Record<string, any> = {}){
+        return await this.getJson<any>(
+            `/v3.0/androidphone/live/channels.json`,
+            {
+                rows: 125,
+                start: 0,
+                showListing: true,
                 ...params,
             }
         );

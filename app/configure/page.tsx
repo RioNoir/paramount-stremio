@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {ParamountAuthStart} from "@/lib/paramount/client";
+import packageInfo from '@/package.json';
 
 function Button({
     children,
@@ -142,18 +143,35 @@ export default function ConfigurePage() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <div className="mx-auto w-full max-w-4xl px-4 py-10">
+        <div className="min-h-screen bg-gray-50 flex flex-col">
+            <div className="mx-auto w-full max-w-4xl px-4 py-10 flex-grow">
                 <div className="mb-8">
-                    <div className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-700">
-                        Paramount+ (US) → Stremio Addon
+                    <div className="mb-8 flex flex-col items-start">
+                        <div className="flex items-center gap-4 mb-4">
+                            <div
+                                className="h-16 w-16 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                                <img
+                                    src="/icon.png" // Assicurati di avere il logo in public/logo.png
+                                    alt="Addon Logo"
+                                    className="h-full w-full object-contain"
+                                />
+                            </div>
+                            <div>
+                                <div
+                                    className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-700 font-medium">
+                                    v{packageInfo.version}
+                                </div>
+                            </div>
+                        </div>
+
+                        <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+                            Paramount+ (US) <span className="text-blue-600">Addon</span>
+                        </h1>
+                        <p className="mt-2 text-sm text-gray-600 max-w-md">
+                            Log in to Paramount+ and get the link to your add-on.
+                        </p>
                     </div>
-                    <h1 className="mt-3 text-2xl font-semibold tracking-tight text-gray-900">
-                        Configure Addon
-                    </h1>
-                    <p className="mt-2 text-sm text-gray-600">
-                        Log in to Paramount+ and get the link to your add-on.
-                    </p>
+
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -164,7 +182,7 @@ export default function ConfigurePage() {
                         <div className="space-y-3">
                             <div className="flex flex-wrap gap-2">
                                 {!activationCode && (
-                                    <Button onClick={start} variant="secondary">
+                                    <Button onClick={start} variant="primary">
                                         Start login (device code)
                                     </Button>
                                 )}
@@ -173,14 +191,15 @@ export default function ConfigurePage() {
                             {activationCode && !manifestUrl && (
                                 <div className="mt-5 text-black">
                                     <p>
-                                        Go <a href="https://www.paramountplus.com/activate/androidtv/" target="_blank" rel="noreferrer" className="text-blue-400">
+                                        Go <a href="https://www.paramountplus.com/activate/androidtv/" target="_blank"
+                                              rel="noreferrer" className="text-blue-400">
                                         here
                                     </a> and insert:
                                     </p>
-                                    <div style={{ fontSize: 40, fontWeight: 800, letterSpacing: 6 }}>
+                                    <div style={{fontSize: 40, fontWeight: 800, letterSpacing: 6}}>
                                         {activationCode}
                                     </div>
-                                    <p style={{ opacity: 0.8 }}>I am automatically checking every 3 seconds...</p>
+                                    <p style={{opacity: 0.8}}>I am automatically checking every 3 seconds...</p>
                                 </div>
                             )}
 
@@ -198,7 +217,7 @@ export default function ConfigurePage() {
                         subtitle="Copy the manifest URL and paste it into Stremio → Addons → Community → Install via URL."
                     >
                         <div className="space-y-3">
-                            <TextArea value={manifestUrl || "Login to generate the manifest URL..."} readOnly />
+                            <TextArea value={manifestUrl || "Login to generate the manifest URL..."} readOnly/>
                             <div className="flex flex-wrap gap-2">
                                 <Button onClick={onCopyManifest} disabled={!manifestUrl}>
                                     Copy Manifest URL
@@ -221,11 +240,38 @@ export default function ConfigurePage() {
                 </div>
 
                 {toast ? (
-                    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-black px-4 py-2 text-sm text-white shadow-lg">
+                    <div
+                        className="fixed bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-black px-4 py-2 text-sm text-white shadow-lg">
                         {toast}
                     </div>
                 ) : null}
             </div>
+
+            <footer className="w-full border-t border-gray-200 bg-white py-8 mt-10">
+                <div className="mx-auto max-w-4xl px-4 text-center">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">
+                        Legal Disclaimer
+                    </p>
+                    <p className="text-xs leading-relaxed text-gray-500">
+                        This add-on is an unofficial tool and is not affiliated with, endorsed by, or
+                        associated with Paramount Global or its subsidiaries. It is intended for
+                        personal use only. Users are responsible for ensuring they have a valid
+                        subscription to the service. We do not host or provide any media content;
+                        this tool simply acts as a proxy for legitimate API requests.
+                    </p>
+                    <div className="mt-2">
+                        <a href="https://github.com/RioNoir/paramount-stremio"
+                           className="text-xs text-purple-900 hover:underline">
+                            Source Code
+                        </a>
+                        <span className="mx-2 text-gray-300">•</span>
+                        <a href="https://buymeacoffee.com/rionoir"
+                           className="text-xs text-purple-900 hover:underline">
+                            Buy me a coffee
+                        </a>
+                    </div>
+                </div>
+            </footer>
         </div>
     );
 }

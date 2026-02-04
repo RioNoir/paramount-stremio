@@ -1,11 +1,21 @@
+import { unstable_cache } from 'next/cache';
 import {NextRequest} from "next/server";
 import {httpClient} from "@/lib/http/client";
 
 export const PPLUS_BASE_URL = "https://www.paramountplus.com";
 export const PPLUS_AT_TOKEN_US = "ABCVvU1Pv0BRR9aWYFLAm+m8bcIJXm7a9GYpMwXFtDuq1P5ARAg6o60yilK8oQ2Eaxc=";
 export const PPLUS_LOCALE_US = "en-us";
-export const PPLUS_HEADER = "Paramount+/16.4.1 (com.cbs.ott; androidphone) okhttp/5.1.0"
+export const PPLUS_APP_VERSION = "16.2.0";
 export const PPLUS_IMG_BASE = "https://wwwimage-us.pplusstatic.com/base/";
+export const PPLUS_HEADER = unstable_cache(
+    async () => {
+        const { data: currentVersion } = await httpClient.get("https://i.mjh.nz/.apk/paramount.version");
+        const version = currentVersion || PPLUS_APP_VERSION;
+        return `Paramount+/${version} (com.cbs.ott; build:520000178; Android SDK 30; androidtv; SHIELD Android TV) okhttp/5.1.0`;
+    },
+    ['user-agent-cache'],
+    { revalidate: 86400 }
+);
 
 export async function checkMyIp() {
     try {
@@ -113,4 +123,67 @@ export function msToDateTimeFormat(ms?: number): string | undefined {
         minute: '2-digit',
         hour12: false
     }).format(d).replace(',', '');
+}
+
+export function pickPoster(e: any): string | undefined {
+    return (
+        normImg(e?.filePathThumb) ??
+        normImg(e?.filepathThumb) ??
+        normImg(e?.filePathWideThumb) ??
+        normImg(e?.channelLogo) ??
+        normImg(e?.channelLogoDark) ??
+        normImg(e?.filepathFallbackImage)
+    );
+}
+
+export function pickLogo(e: any): string | undefined {
+    return (
+        e?.filepathFallbackImage ? normImg(e?.filepathFallbackImage) : ""
+    );
+}
+
+export function pickBackground(e: any): string | undefined {
+    return normImg(e?.filePathWideThumb) ?? normImg(e?.filePathThumb);
+}
+
+export function pickLeagueLabel(e: any): string | undefined {
+    const gd = e?.gameData;
+    const a = gd?.competition ?? gd?.league ?? gd?.sport ?? gd?.leagueName ?? gd?.sportName;
+    const b = gd?.tournament ?? gd?.competitionName;
+    const out = [a, b].filter(Boolean).join(" • ");
+    return out || undefined;
+}
+
+export function pickManifestUrl(tokenResp: any): string | null {
+
+    const candidates: (string | undefined)[] = [
+        tokenResp?.streamingUrl,
+        tokenResp?.hls?.url,
+        tokenResp?.hlsUrl,
+        tokenResp?.playback?.hls,
+        tokenResp?.playback?.url,
+        tokenResp?.manifestUrl,
+    ];
+
+    const allStrings: string[] = [];
+    const walk = (obj: any) => {
+        if (!obj) return;
+        if (typeof obj === "string") allStrings.push(obj);
+        else if (Array.isArray(obj)) obj.forEach(walk);
+        else if (typeof obj === "object") Object.values(obj).forEach(walk);
+    };
+    walk(tokenResp);
+
+    const merged = [...candidates.filter(Boolean) as string[], ...allStrings];
+    const m3u8 = merged.find((u) => typeof u === "string" && (u.includes(".m3u8") || u.includes(".mpd")));
+    if (m3u8) return m3u8;
+
+    const license = merged.find((u) => typeof u === "string" && u.includes("/widevine/getlicense"));
+    if (license) return null;
+
+    return null;
+}
+
+export function isLicenseUrl(u: string) {
+    return u.includes("/widevine/getlicense") || u.toLowerCase().includes("getlicense");
 }
