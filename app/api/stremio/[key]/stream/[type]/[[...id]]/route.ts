@@ -6,6 +6,7 @@ import { stripJsonSuffix } from "@/lib/paramount/utils";
 import { resolveSportStream } from "@/lib/paramount/types/sports";
 import { resolveLiveStream } from "@/lib/paramount/types/live";
 import { wrapUrlWithMediaFlow } from "@/lib/mediaflowproxy/mediaflowproxy";
+import { shorten } from "@/lib/http/sid";
 
 export const runtime = "nodejs";
 export const preferredRegion = "iad1";
@@ -49,10 +50,8 @@ export async function GET(
         const base = new URL(url);
 
         if(streamingUrl.toString().includes('.m3u8')) {
-            //HLS internal proxy stream
-            const internal = new URL(`/api/stremio/${encodeURIComponent(key)}/proxy/hls`, base.origin);
-            internal.searchParams.set("u", Buffer.from(streamingUrl.toString()).toString('base64url'));
-            internal.searchParams.set("t", Buffer.from(lsSession.toString()).toString('base64url'));
+            const sid = shorten(key, streamingUrl.toString(), lsSession.toString());
+            const internal = new URL(`/api/proxy/${sid}/hls`, base.origin);
             if (internal) {
                 streams.push({
                     name: "Paramount+ (US)",
@@ -84,12 +83,10 @@ export async function GET(
 
         }else if(streamingUrl.toString().includes('.mpd')){
             //MPD internal proxy stream
-            const license = new URL(`/api/stremio/${encodeURIComponent(key)}/proxy/license`, base.origin);
-            license.searchParams.set("u", Buffer.from(lsUrl.toString()).toString('base64url'));
+            const sid = shorten(key, streamingUrl.toString(), lsSession.toString(), lsUrl.toString());
+            const internal = new URL(`/api/proxy/${sid}/mpd`, base.origin);
+            const license = new URL(`/api/proxy/${sid}/license`, base.origin);
 
-            const internal = new URL(`/api/stremio/${encodeURIComponent(key)}/proxy/mpd`, base.origin);
-            internal.searchParams.set("u", Buffer.from(streamingUrl.toString()).toString('base64url'));
-            internal.searchParams.set("t", Buffer.from(lsSession.toString()).toString('base64url'));
             if (internal) {
                 streams.push({
                     name: "Paramount+ (US)",

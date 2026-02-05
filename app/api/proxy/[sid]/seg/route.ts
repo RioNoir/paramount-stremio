@@ -2,37 +2,39 @@ import { NextRequest, NextResponse } from "next/server";
 import {ParamountClient} from "@/lib/paramount/client";
 import {needsParamountAuth, buildCookieHeader, forwardHeaders, copyRespHeaders, PPLUS_BASE_URL, PPLUS_HEADER} from "@/lib/paramount/utils";
 import {httpClient} from "@/lib/http/client";
+import {extend} from "@/lib/http/sid";
 
 export const runtime = "nodejs";
 export const preferredRegion = "iad1";
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> }) {
-    const { key } = await ctx.params;
+async function handle(req: NextRequest, ctx: { params: Promise<{ sid: string }> }) {
+    const { sid } = await ctx.params;
+
+    const f = req.nextUrl.searchParams.get("f");
+
+    const session = sid ? extend(sid) : null;
+    const key = session?.key ?? null;
+    const u = session?.u ?? null;
+    const t = session?.t ?? null;
+    //const f = session?.f ?? null;
+    if (!session || !key) {
+        return new Response("Invalid Session", { status: 403 });
+    }
+    if (!u || !t) return new NextResponse("Missing u/t", { status: 400 });
 
     const client = new ParamountClient();
     await client.setSessionKey(key);
 
-    const session = client.getSession();
-    if (!session) return new NextResponse("Unauthorized", { status: 401 });
+    const pSession = client.getSession();
+    if (!pSession) return new NextResponse("Unauthorized", { status: 401 });
 
-    const u = req.nextUrl.searchParams.get("u");
-    const t = req.nextUrl.searchParams.get("t");
-    const f = req.nextUrl.searchParams.get("f");
-    if (!u || !t) return new NextResponse("Missing u/t", { status: 400 });
+    let baseUrl = u;
+    baseUrl = f ? `${baseUrl}${f}` : baseUrl;
 
-    let upstreamUrl: URL;
-    let upstreamToken: string;
-    try {
-        let baseUrl = Buffer.from(u, 'base64url').toString('utf-8');
-        baseUrl = f ? `${baseUrl}${f}` : baseUrl;
-
-        upstreamUrl = new URL(baseUrl);
-        upstreamToken = Buffer.from(t, 'base64url').toString('utf-8');
-    } catch {
-        return new NextResponse("Bad upstream url or token", { status: 400 });
-    }
+    const upstreamUrl = new URL(baseUrl);
+    const upstreamToken = t;
 
     const headers: Record<string, string> = {
         ...forwardHeaders(req),
@@ -45,7 +47,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
     if (needsParamountAuth(upstreamUrl.hostname)) {
         headers["authorization"] = `Bearer ${upstreamToken}`;
 
-        const cookie = buildCookieHeader(session.cookies);
+        const cookie = buildCookieHeader(pSession.cookies);
         if (cookie) headers["cookie"] = cookie;
 
         headers["origin"] = PPLUS_BASE_URL;
@@ -53,10 +55,28 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
     }
 
     const method = req.method === "HEAD" ? "HEAD" : "GET";
-    const {status: status, data: data, headers: resHeaders} = await httpClient.get(upstreamUrl.toString(), {
+    const {status: status, data: stream, headers: resHeaders} = await httpClient.get(upstreamUrl.toString(), {
         headers: headers,
-        responseType: 'arraybuffer',
+        //responseType: 'arraybuffer',
+        responseType: 'stream',
         validateStatus: (s) => s < 500
+    });
+
+    const webStream = new ReadableStream({
+        start(controller) {
+            stream.on("data", (chunk: Buffer) => {
+                controller.enqueue(new Uint8Array(chunk));
+            });
+            stream.on("end", () => {
+                controller.close();
+            });
+            stream.on("error", (err: Error) => {
+                controller.error(err);
+            });
+        },
+        cancel() {
+            stream.destroy();
+        }
     });
 
     const outHeaders = copyRespHeaders(resHeaders);
@@ -73,13 +93,17 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
     outHeaders.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
     outHeaders.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
     outHeaders.set("Access-Control-Expose-Headers", "Content-Length, Content-Range");
-    outHeaders.set("Cache-Control", "no-cache, no-store, max-age=0, must-revalidate");
+    if (pathname.endsWith(".ts")) {
+        outHeaders.set("Cache-Control", "no-cache, no-store, max-age=0, must-revalidate");
+    }else{
+        outHeaders.set("Cache-Control", "public, max-age=3600");
+    }
 
     if (method === "HEAD") {
         return new NextResponse(null, { status: status, headers: outHeaders });
     }
 
-    return new NextResponse(data, { status: status, headers: outHeaders });
+    return new NextResponse(webStream, { status: status, headers: outHeaders });
 }
 
 export async function GET(req: NextRequest, ctx: any) {

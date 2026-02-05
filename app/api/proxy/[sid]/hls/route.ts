@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {ParamountClient} from "@/lib/paramount/client";
 import {needsParamountAuth, buildCookieHeader, guessBaseOrigin, PPLUS_BASE_URL, PPLUS_HEADER} from "@/lib/paramount/utils";
 import {httpClient} from "@/lib/http/client";
+import { shorten, extend } from "@/lib/http/sid";
 
 export const runtime = "nodejs";
 export const preferredRegion = "iad1";
@@ -11,18 +12,17 @@ export const revalidate = 0;
 function rewriteM3U8(params: {
     text: string;
     upstreamUrl: URL;
+    upstreamToken: string;
     baseOrigin: string;
     key: string;
-    token: string;
 }) {
-    const { text, upstreamUrl, baseOrigin, key, token } = params;
+    const { text, upstreamUrl, upstreamToken, baseOrigin, key } = params;
 
     const toProxy = (absUrl: string) => {
         const isManifest = absUrl.includes(".m3u8");
         const endpoint = isManifest ? "hls" : "seg";
-        const u = new URL(`/api/stremio/${key}/proxy/${endpoint}`, baseOrigin);
-        u.searchParams.set("u", Buffer.from(absUrl.toString()).toString('base64url'));
-        u.searchParams.set("t", token);
+        const sid = shorten(key, absUrl.toString(), upstreamToken);
+        const u = new URL(`/api/proxy/${sid}/${endpoint}`, baseOrigin);
         return u.toString();
     };
 
@@ -124,27 +124,26 @@ function rewriteM3U8(params: {
     return outMedia.join("\n");
 }
 
-async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> }) {
-    const { key } = await ctx.params;
+async function handle(req: NextRequest, ctx: { params: Promise<{ sid: string }> }) {
+    const { sid } = await ctx.params;
+
+    const session = sid ? extend(sid) : null;
+    const key = session?.key ?? null;
+    const u = session?.u ?? null;
+    const t = session?.t ?? null;
+    if (!session || !key) {
+        return new Response("Invalid Session", { status: 403 });
+    }
+    if (!u || !t) return new NextResponse("Missing u/t", { status: 400 });
 
     const client = new ParamountClient();
     await client.setSessionKey(key);
 
-    const session = client.getSession();
-    if (!session) return new NextResponse("Unauthorized", { status: 401 });
+    const pSession = client.getSession();
+    if (!pSession) return new NextResponse("Unauthorized", { status: 401 });
 
-    const u = req.nextUrl.searchParams.get("u");
-    const t = req.nextUrl.searchParams.get("t");
-    if (!u || !t) return new NextResponse("Missing u/t", { status: 400 });
-
-    let upstreamUrl: URL;
-    let upstreamToken: string;
-    try {
-        upstreamUrl = new URL(Buffer.from(u, 'base64url').toString('utf-8'));
-        upstreamToken = Buffer.from(t, 'base64url').toString('utf-8');
-    } catch {
-        return new NextResponse("Bad upstream url or token", { status: 400 });
-    }
+    const upstreamUrl = new URL(u);
+    const upstreamToken = t;
 
     const headers: Record<string, string> = {
         "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
@@ -155,13 +154,12 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
     if (needsParamountAuth(upstreamUrl.hostname)) {
         headers["authorization"] = `Bearer ${upstreamToken}`;
 
-        const cookie = buildCookieHeader(session.cookies);
+        const cookie = buildCookieHeader(pSession.cookies);
         if (cookie) headers["cookie"] = cookie;
 
         headers["origin"] = PPLUS_BASE_URL;
         headers["referer"] = PPLUS_BASE_URL;
     }
-
 
     const {status, data} = await httpClient.get(upstreamUrl.toString(), {
         headers: headers
@@ -180,14 +178,13 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
     }
 
     const baseOrigin = guessBaseOrigin(req);
-
     const text = data.toString();
     const rewritten = rewriteM3U8({
         text,
         upstreamUrl,
+        upstreamToken,
         baseOrigin,
         key,
-        token: t
     });
 
     const outHeaders = new Headers({

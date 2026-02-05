@@ -16,6 +16,8 @@ export class HttpClient {
             httpAgent: agent,
             httpsAgent: agent,
             proxy: false,
+            maxContentLength: Infinity,
+            maxBodyLength: Infinity,
             validateStatus: (status) => status < 500
         });
     }
