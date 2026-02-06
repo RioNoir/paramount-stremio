@@ -111,6 +111,72 @@ Addon web ui will be available at: `http://localhost:7860`
 
 ---
 
+### 🐳 Install with docker compose and VPN
+
+The following tools are required for docker installation: [git](https://git-scm.com/install/), [docker](https://docs.docker.com/engine/install/).<br><br>
+**Create a `docker-compose.yml` and enter the following:**
+
+```bash
+services:
+  #Check gluetun documentation here: https://github.com/qdm12/gluetun
+  gluetun:
+    image: qmcgaw/gluetun
+    container_name: Gluetun
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    restart: always
+    volumes:
+      - ./Gluetun:/gluetun
+    ports:
+      - 7850:7850/tcp #Port of your addon instance
+    environment:
+      - HEALTH_ICMP_TARGET_IPS=4.2.2.1,4.2.2.2 
+      - HEALTH_TARGET_ADDRESSES=paramountplus.com:443
+      - UPDATER_PERIOD=24h
+
+      ##Example with NordVPN
+      #- VPN_SERVICE_PROVIDER=nordvpn
+      #- VPN_TYPE=openvpn
+      #- OPENVPN_USER=
+      #- OPENVPN_PASSWORD=
+      #- SERVER_COUNTRIES="United States"
+      #- SERVER_REGIONS="The Americas"
+      #- SERVER_CITIES="Manassas"
+
+      ##Example with Wireguard
+      #- VPN_SERVICE_PROVIDER=custom
+      #- VPN_TYPE=wireguard
+      #- WIREGUARD_ENDPOINT_IP=
+      #- WIREGUARD_ENDPOINT_PORT=51820
+      #- WIREGUARD_PUBLIC_KEY=
+      #- WIREGUARD_PRIVATE_KEY=
+      #- WIREGUARD_PRESHARED_KEY=
+      #- WIREGUARD_ADDRESSES=10.8.0.10/32
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  paramount-stremio:
+    build: https://github.com/RioNoir/paramount-stremio.git#main
+    container_name: Paramount-Stremio
+    environment:
+      - BASE_URL=http://localhost:7850 #required
+      - KEY_SECRET=[random-key] #required
+      - PORT=7850 #optional (default: 7850)
+    restart: unless-stopped
+    network_mode: "service:gluetun"
+    depends_on:
+      gluetun:
+        condition: service_healthy
+        restart: true
+
+```
+**Start addon with `docker compose up -d`** <br>
+Addon web ui will be available at: `http://localhost:7860`
+
+---
+
 ### 📖 Environment variables
 
 You can configure or set the following environment variables in an `.env` file. This applies to all types of installation.
