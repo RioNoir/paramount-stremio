@@ -12,7 +12,7 @@ function parseExtras(extra?: string[]) {
         out[decodeURIComponent(seg.slice(0, i))] = decodeURIComponent(seg.slice(i + 1));
     }
     return {
-        search: out.search ? out.search.replace('.json', '') : null,
+        search: out.search ? out.search.replace('.json', '') : "",
         skip: out.skip ? Number(out.skip.replace('.json', '')) : 0,
     };
 }
