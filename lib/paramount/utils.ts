@@ -121,10 +121,11 @@ export function msToUtc(ms?: number): string | undefined {
 export function msToDateTimeFormat(ms?: number): string | undefined {
     if (!ms || !Number.isFinite(ms)) return undefined;
 
-    const timezone = process.env.TIMEZONE || 'UTC';
+    const timezone = process.env.TIMEZONE ?? 'UTC';
+    const timezoneLang = process.env.TIMEZONE_LANG ?? 'it-IT';
     const d = new Date(ms);
 
-    return new Intl.DateTimeFormat('en-US', {
+    return new Intl.DateTimeFormat(timezoneLang, {
         timeZone: timezone,
         year: 'numeric',
         month: '2-digit',

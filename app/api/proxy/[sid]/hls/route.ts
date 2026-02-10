@@ -76,7 +76,7 @@ function rewriteM3U8(params: {
             }
         }
 
-        const forceHq = process.env.FORCE_HQ || false;
+        const forceHq = process.env.FORCE_HQ === "true";
         if(forceHq) {
             streamInfVariants.sort((a, b) => b.bandwidth - a.bandwidth);
             frameStreamInfVariants.sort((a, b) => b.bandwidth - a.bandwidth);
@@ -193,8 +193,8 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ sid: string }> 
         "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type, Authorization",
         "Cache-Control": "no-cache, no-store, max-age=0, must-revalidate",
-        "Content-Type": "application/vnd.apple.mpegurl",
-        //"Content-Type": "text/plain",
+        //"Content-Type": "application/vnd.apple.mpegurl",
+        "Content-Type": "text/plain",
     });
 
     return new NextResponse(rewritten, { status: status, headers: outHeaders });

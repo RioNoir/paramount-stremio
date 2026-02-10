@@ -1,11 +1,6 @@
 import {ParamountClient, ParamountSession} from "@/lib/paramount/client";
 import {StremioMeta} from "@/lib/stremio/types";
-import {
-    isLicenseUrl,
-    normImg,
-    pickManifestUrl,
-    pickPoster
-} from "@/lib/paramount/utils";
+import {isLicenseUrl, normImg, pickManifestUrl, pickPoster} from "@/lib/paramount/utils";
 import {pplusLiveId} from "@/lib/paramount/mapping";
 
 export function mapLiveListingToMeta(e: any) {
@@ -54,11 +49,18 @@ export async function getLiveListing(session: ParamountSession) : Promise<any> {
     await client.setSession(session);
     const data: any = await client.getLiveChannels();
 
-    return data?.channels ??
+    const listings = data?.channels ??
         data?.data?.channels ??
         data?.data?.listings ??
         data?.data?.data?.listings ??
         [];
+
+    const mpdEnabled = process.env.MPD_ENABLED === "true";
+    return listings.filter((l: any) => {
+        if (mpdEnabled) return true;
+        const isMpx = l?.channelTypes?.includes('vod_to_live');
+        return !isMpx;
+    });
 }
 
 export async function findLiveListing(session: ParamountSession, slug: string) {
@@ -81,7 +83,9 @@ export async function resolveLiveStream(session: ParamountSession, slug: string)
     const e = await findLiveListing(session, slug);
     const channelName = e?.channelName ?? slug;
     const channelProgram = e?.currentListing?.[0] ?? e?.upcomingListing?.[0] ?? null;
-    const streamingTitle = `📺 ${channelName} \n📹 ${channelProgram?.title ?? channelName}`;
+    let streamingTitle = `📺 ${channelName}`;
+    if(channelProgram?.title && channelProgram?.title.toString().toLowerCase() !== channelName.toString().toLowerCase())
+        streamingTitle += `\n📹 ${channelProgram?.title}`;
     const streamingContentId = channelProgram?.videoContentId ?? channelProgram?.contentId ?? e?.videoContentId ?? e?.contentId ?? null;
 
     const client = new ParamountClient();
