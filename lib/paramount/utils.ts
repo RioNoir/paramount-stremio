@@ -7,24 +7,26 @@ export const PPLUS_LOCALE_US = "en-us";
 export const PPLUS_APP_VERSION = "16.2.0";
 export const PPLUS_IMG_BASE = "https://wwwimage-us.pplusstatic.com/base/";
 
-let PPLUS_HEADER_CACHED = global as any;
-let PPLUS_HEADER_LAST_FETCH = 0;
-const PPLUS_HEADER_CACHE_TTL = 24 * 60 * 60 * 1000;
+// let PPLUS_HEADER_CACHED = global as any;
+// let PPLUS_HEADER_LAST_FETCH = 0;
+// const PPLUS_HEADER_CACHE_TTL = 24 * 60 * 60 * 1000;
 export async function PPLUS_HEADER() : Promise<string> {
-    const now = Date.now();
-    if (PPLUS_HEADER_CACHED && (now - PPLUS_HEADER_LAST_FETCH < PPLUS_HEADER_CACHE_TTL)) {
-        return PPLUS_HEADER_CACHED.toString();
-    }
-    let version = PPLUS_APP_VERSION;
-    try {
-        const { data: currentVersion } = await httpClient.get("https://i.mjh.nz/.apk/paramount.version", {
-            timeout: 2000,
-        });
-        if (currentVersion) version = currentVersion.trim();
-    } catch (e) {}
-    PPLUS_HEADER_CACHED = `Paramount+/${version} (com.cbs.ott; build:520000178; Android SDK 30; androidtv; SHIELD Android TV) okhttp/5.1.0`;
-    PPLUS_HEADER_LAST_FETCH = now;
-    return PPLUS_HEADER_CACHED.toString();
+    return `Paramount+/${PPLUS_APP_VERSION} (com.cbs.ott; build:520000178; Android SDK 30; androidtv; SHIELD Android TV) okhttp/5.1.0`;
+
+    // const now = Date.now();
+    // if (PPLUS_HEADER_CACHED && (now - PPLUS_HEADER_LAST_FETCH < PPLUS_HEADER_CACHE_TTL)) {
+    //     return PPLUS_HEADER_CACHED.toString();
+    // }
+    // let version = PPLUS_APP_VERSION;
+    // try {
+    //     const { data: currentVersion } = await httpClient.get("https://i.mjh.nz/.apk/paramount.version", {
+    //         timeout: 2000,
+    //     });
+    //     if (currentVersion) version = currentVersion.trim();
+    // } catch (e) {}
+    // PPLUS_HEADER_CACHED = `Paramount+/${version} (com.cbs.ott; build:520000178; Android SDK 30; androidtv; SHIELD Android TV) okhttp/5.1.0`;
+    // PPLUS_HEADER_LAST_FETCH = now;
+    // return PPLUS_HEADER_CACHED.toString();
 }
 
 export async function checkMyIp() {
