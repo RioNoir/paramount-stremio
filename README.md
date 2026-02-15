@@ -107,7 +107,7 @@ services:
       - "7850:7850"
 ```
 **Start addon with `docker compose up -d`** <br>
-Addon web ui will be available at: `http://localhost:7860`
+Addon web ui will be available at: `http://localhost:7850`
 
 ---
 
@@ -173,7 +173,7 @@ services:
 
 ```
 **Start addon with `docker compose up -d`** <br>
-Addon web ui will be available at: `http://localhost:7860`
+Addon web ui will be available at: `http://localhost:7850`
 
 ---
 
@@ -181,15 +181,16 @@ Addon web ui will be available at: `http://localhost:7860`
 
 You can configure or set the following environment variables in an `.env` file. This applies to all types of installation.
 
-| Variable | Value | Required | Description |
-|:---|:---|:---|:---|
-| `BASE_URL` | `http://localhost:7860` | YES | The URL that the app will place in front of all generated links. This can be the link to your proxy server to use HTTPS. |
-| `KEY_SECRET` | `[random-key]` | YES | Randomly generated key to encrypt the login session. At least 20 characters recommended. |
-| `TIMEZONE` | `America/New_York` | NO | Time zone used to format dates. |
-| `FORCE_HQ` | `false` | NO | Set to `true` to force maximum streaming quality, useful in some players. |
-| `HTTP_PROXY` | `https://<username>:<password>@us8682.<vpn-provider>.com:89` | NO | HTTP/HTTPS/SOCK5 Proxy, all HTTP calls from addon will be made using this. Currently, only one proxy is supported. |
-| `MFP_URL` | `http://localhost:8888` | NO | URL of your [MediaFlow Proxy](https://github.com/mhdzumair/mediaflow-proxy) instance. |
-| `MFP_PASS` | `<your-password>` | NO | Password of your [MediaFlow Proxy](https://github.com/mhdzumair/mediaflow-proxy) instance. |
+| Variable     | Value                                                        | Required | Description                                                                                                              |
+|:-------------|:-------------------------------------------------------------|:---------|:-------------------------------------------------------------------------------------------------------------------------|
+| `BASE_URL`   | `http://localhost:7850`                                      | YES      | The URL that the app will place in front of all generated links. This can be the link to your proxy server to use HTTPS. |
+| `PORT`       | `7850`                                                       | NO       | The port of the the addon.                                                                                               |
+| `KEY_SECRET` | `<random-key>`                                               | YES      | Randomly generated key to encrypt the login session. At least 20 characters recommended.                                 |
+| `TIMEZONE`   | `America/New_York`                                           | NO       | Time zone used to format dates.                                                                                          |
+| `FORCE_HQ`   | `false`                                                      | NO       | Set to `true` to force maximum streaming quality, useful in some players.                                                |
+| `HTTP_PROXY` | `https://<username>:<password>@us8682.<vpn-provider>.com:89` | NO       | HTTP/HTTPS/SOCK5 Proxy, all HTTP calls from addon will be made using this. Currently, only one proxy is supported.       |
+| `MFP_URL`    | `http://localhost:8888`                                      | NO       | URL of your [MediaFlow Proxy](https://github.com/mhdzumair/mediaflow-proxy) instance.                                    |
+| `MFP_PASS`   | `<your-password>`                                            | NO       | Password of your [MediaFlow Proxy](https://github.com/mhdzumair/mediaflow-proxy) instance.                               |
 
 ---
 
