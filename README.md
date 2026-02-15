@@ -26,6 +26,12 @@ This is an add-on that allows you to view the contents of your Paramount+ accoun
 - Auto-proxed streams directly from the addon (currently only HLS streams work)
 - Multiple accounts with a single instance of the addon
 
+## 💥 Known issues
+
+- Some players (such as KSPlayer) may freeze during commercials due to poor support for the m3u #EXT-X-DISCONTINUITY tag (we recommend using libVLC or an external player that supports this tag).
+- If you see an HTTP 403 error during playback, your IP may have been permanently banned (this happens when using a VPN). We recommend changing your DNS server and trying again.
+- The addon login session is valid for one year. If you notice that the addon is no longer working, try logging in again.
+
 ## 💾 Installation
 
 Before proceeding with the installation, you must generate a <b>random key</b>, which will be used to encrypt the login session.
@@ -184,7 +190,7 @@ You can configure or set the following environment variables in an `.env` file. 
 | Variable     | Value                                                        | Required | Description                                                                                                              |
 |:-------------|:-------------------------------------------------------------|:---------|:-------------------------------------------------------------------------------------------------------------------------|
 | `BASE_URL`   | `http://localhost:7850`                                      | YES      | The URL that the app will place in front of all generated links. This can be the link to your proxy server to use HTTPS. |
-| `PORT`       | `7850`                                                       | NO       | The port of the the addon.                                                                                               |
+| `PORT`       | `7850`                                                       | NO       | The port of the addon.                                                                                               |
 | `KEY_SECRET` | `<random-key>`                                               | YES      | Randomly generated key to encrypt the login session. At least 20 characters recommended.                                 |
 | `TIMEZONE`   | `America/New_York`                                           | NO       | Time zone used to format dates.                                                                                          |
 | `FORCE_HQ`   | `false`                                                      | NO       | Set to `true` to force maximum streaming quality, useful in some players.                                                |
