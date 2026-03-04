@@ -27,6 +27,12 @@ This is an add-on that allows you to view the contents of your Paramount+ accoun
 - Multiple accounts with a single instance of the addon
 - IPTV export: M3U playlist + XMLTV EPG
 
+## 💥 Known issues
+
+- Some players (such as KSPlayer) may freeze during commercials due to poor support for the m3u #EXT-X-DISCONTINUITY tag (we recommend using libVLC or an external player that supports this tag).
+- If you see an HTTP 403 error during playback, your IP may have been permanently banned (this happens when using a VPN). We recommend changing your DNS server and trying again.
+- The addon login session is valid for one year. If you notice that the addon is no longer working, try logging in again.
+
 ## 💾 Installation
 
 Before proceeding with the installation, you must generate a <b>random key</b>, which will be used to encrypt the login session.
@@ -112,72 +118,6 @@ Addon web ui will be available at: `http://localhost:7850`
 
 ---
 
-### 🐳 Install with docker compose and VPN
-
-The following tools are required for docker installation: [git](https://git-scm.com/install/), [docker](https://docs.docker.com/engine/install/).<br><br>
-**Create a `docker-compose.yml` and enter the following:**
-
-```bash
-services:
-  #Check gluetun documentation here: https://github.com/qdm12/gluetun
-  gluetun:
-    image: qmcgaw/gluetun
-    container_name: Gluetun
-    cap_add:
-      - NET_ADMIN
-    devices:
-      - /dev/net/tun:/dev/net/tun
-    restart: always
-    volumes:
-      - ./Gluetun:/gluetun
-    ports:
-      - 7850:7850/tcp #Port of your addon instance
-    environment:
-      - HEALTH_ICMP_TARGET_IPS=4.2.2.1,4.2.2.2 
-      - HEALTH_TARGET_ADDRESSES=paramountplus.com:443
-      - UPDATER_PERIOD=24h
-
-      ##Example with NordVPN
-      #- VPN_SERVICE_PROVIDER=nordvpn
-      #- VPN_TYPE=openvpn
-      #- OPENVPN_USER=
-      #- OPENVPN_PASSWORD=
-      #- SERVER_COUNTRIES="United States"
-      #- SERVER_REGIONS="The Americas"
-      #- SERVER_CITIES="Manassas"
-
-      ##Example with Wireguard
-      #- VPN_SERVICE_PROVIDER=custom
-      #- VPN_TYPE=wireguard
-      #- WIREGUARD_ENDPOINT_IP=
-      #- WIREGUARD_ENDPOINT_PORT=51820
-      #- WIREGUARD_PUBLIC_KEY=
-      #- WIREGUARD_PRIVATE_KEY=
-      #- WIREGUARD_PRESHARED_KEY=
-      #- WIREGUARD_ADDRESSES=10.8.0.10/32
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
-  paramount-stremio:
-    build: https://github.com/RioNoir/paramount-stremio.git#main
-    container_name: Paramount-Stremio
-    environment:
-      - BASE_URL=http://localhost:7850 #required
-      - KEY_SECRET=[random-key] #required
-      - PORT=7850 #optional (default: 7850)
-    restart: unless-stopped
-    network_mode: "service:gluetun"
-    depends_on:
-      gluetun:
-        condition: service_healthy
-        restart: true
-
-```
-**Start addon with `docker compose up -d`** <br>
-Addon web ui will be available at: `http://localhost:7850`
-
----
-
 ### 📖 Environment variables
 
 You can configure or set the following environment variables in an `.env` file. This applies to all types of installation.
@@ -185,7 +125,7 @@ You can configure or set the following environment variables in an `.env` file. 
 | Variable     | Value                                                        | Required | Description                                                                                                              |
 |:-------------|:-------------------------------------------------------------|:---------|:-------------------------------------------------------------------------------------------------------------------------|
 | `BASE_URL`   | `http://localhost:7850`                                      | YES      | The URL that the app will place in front of all generated links. This can be the link to your proxy server to use HTTPS. |
-| `PORT`       | `7850`                                                       | NO       | The port of the the addon.                                                                                               |
+| `PORT`       | `7850`                                                       | NO       | The port of the addon.                                                                                               |
 | `KEY_SECRET` | `<random-key>`                                               | YES      | Randomly generated key to encrypt the login session. At least 20 characters recommended.                                 |
 | `TIMEZONE`   | `America/New_York`                                           | NO       | Time zone used to format dates.                                                                                          |
 | `FORCE_HQ`   | `false`                                                      | NO       | Set to `true` to force maximum streaming quality, useful in some players.                                                |
