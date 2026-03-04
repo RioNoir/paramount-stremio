@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/RioNoir/paramount-stremio/refs/heads/main/public/icon.png" alt="Castoro" style="margin: 20px 0; width: 400px; height: auto;">
+  <img src="https://raw.githubusercontent.com/RioNoir/paramount-stremio/refs/heads/main/public/icon.png" alt="PPlus" style="margin: 20px 0; width: 400px; height: auto;">
 </p>
 <p align="center">
   <a href="https://www.buymeacoffee.com/rionoir"><img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="BuyMeACoffee" style="margin: 20px 0; width: 95px; height: auto;"></a>
@@ -15,7 +15,7 @@
 # Unofficial Paramount+ Stremio Addon
 
 > [!WARNING]  
-> DISCLAIMER: This project is not associated with Paramount in any way. This project does not provide pirated content in any way, a valid Paramount+ account is required to access content. 
+> DISCLAIMER: This project is not associated with Paramount in any way. This project does not provide pirated content in any way, a valid Paramount+ account is required to access content. As described in Paramount's terms and conditions, using proxy services is considered abuse. Use of this software is at the user's sole discretion, and we assume no responsibility for its use or any repercussions on the account used.
 
 This is an add-on that allows you to view the contents of your Paramount+ account directly within Stremio. To use it, you need to log in with your account. <ins>Currently, only US accounts are supported.</ins>
 
