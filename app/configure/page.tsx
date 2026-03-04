@@ -71,6 +71,8 @@ export default function ConfigurePage() {
     const [activationCode, setActivationCode] = useState<string | null>(null);
     const [paramountAuth, setParamountAuth] = useState<ParamountAuthStart | null>(null);
     const [manifestUrl, setManifestUrl] = useState<string | null>(null);
+    const [m3uUrl, setM3uUrl] = useState<string | null>(null);
+    const [epgUrl, setEpgUrl] = useState<string | null>(null);
     const [key, setKey] = useState("");
     const [toast, setToast] = useState<string | null>(null);
 
@@ -78,6 +80,8 @@ export default function ConfigurePage() {
         setActivationCode(null);
         setParamountAuth(null);
         setManifestUrl(null);
+        setM3uUrl(null);
+        setEpgUrl(null);
 
         const r = await fetch("/api/auth/device/start", { method: "POST" });
         const j = await r.json();
@@ -100,6 +104,8 @@ export default function ConfigurePage() {
         const j = await r.json();
         if (j.ok) {
             setManifestUrl(j.manifestUrl);
+            setM3uUrl(j.m3uUrl ?? null);
+            setEpgUrl(j.epgUrl ?? null);
             return true;
         }
         return false;
@@ -142,6 +148,18 @@ export default function ConfigurePage() {
         showToast(ok ? "Manifest URL copied ✅" : "Unable to copy 😅");
     }
 
+    async function onCopyM3u() {
+        if (!m3uUrl) return;
+        const ok = await copyToClipboard(m3uUrl);
+        showToast(ok ? "M3U URL copied ✅" : "Unable to copy 😅");
+    }
+
+    async function onCopyEpg() {
+        if (!epgUrl) return;
+        const ok = await copyToClipboard(epgUrl);
+        showToast(ok ? "EPG URL copied ✅" : "Unable to copy 😅");
+    }
+
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col">
             <div className="mx-auto w-full max-w-4xl px-4 py-10 flex-grow">
@@ -165,7 +183,7 @@ export default function ConfigurePage() {
                         </div>
 
                         <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-                            Paramount+ (US) <span className="text-blue-600">Addon</span>
+                            Unofficial <span className="text-blue-600">Paramount+</span> Addon
                         </h1>
                         <p className="mt-2 text-sm text-gray-600 max-w-md">
                             Log in to Paramount+ and get the link to your add-on.
@@ -209,31 +227,63 @@ export default function ConfigurePage() {
                                     <h3 className="font-bold text-teal-700">Logged in</h3>
                                 </div>
                             )}
+
+                            <p className="text-gray-500 text-sm inline-block align-text-bottom">
+                                By proceeding with the login, you confirm that you have read the disclaimer at the bottom of the page.
+                            </p>
                         </div>
                     </Card>
 
-                    <Card
-                        title="2 → Install to Stremio"
-                        subtitle="Copy the manifest URL and paste it into Stremio → Addons → Community → Install via URL."
-                    >
-                        <div className="space-y-3">
-                            <TextArea value={manifestUrl || "Login to generate the manifest URL..."} readOnly/>
-                            <div className="flex flex-wrap gap-2">
-                                <Button onClick={onCopyManifest} disabled={!manifestUrl}>
-                                    Copy Manifest URL
-                                </Button>
+                    <div>
+                        <Card
+                            title="2 → Install to Stremio"
+                            subtitle="Copy the manifest URL and paste it into Stremio → Addons → Community → Install via URL."
+                        >
+                            <div className="space-y-3">
+                                <TextArea value={manifestUrl || "Login to generate the manifest URL..."} readOnly/>
+                                <div className="flex flex-wrap gap-2">
+                                    <Button onClick={onCopyManifest} disabled={!manifestUrl}>
+                                        Copy Manifest URL
+                                    </Button>
 
-                                <a
-                                    href={stremioInstallUrl || "#"}
-                                    onClick={(e) => !stremioInstallUrl && e.preventDefault()}
-                                    className={`inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium transition ${
-                                        stremioInstallUrl
-                                            ? "bg-gray-100 text-gray-900 hover:bg-gray-200"
-                                            : "bg-gray-100/60 text-gray-500 cursor-not-allowed"
-                                    }`}
-                                >
-                                    Open in Stremio
-                                </a>
+                                    <a
+                                        href={stremioInstallUrl || "#"}
+                                        onClick={(e) => !stremioInstallUrl && e.preventDefault()}
+                                        className={`inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium transition ${
+                                            stremioInstallUrl
+                                                ? "bg-gray-100 text-gray-900 hover:bg-gray-200"
+                                                : "bg-gray-100/60 text-gray-500 cursor-not-allowed"
+                                        }`}
+                                    >
+                                        Open in Stremio
+                                    </a>
+                                </div>
+                            </div>
+                        </Card>
+                    </div>
+                </div>
+
+
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-1 mt-4">
+                    <Card
+                        title="Optional → Install to your IPTV client"
+                        subtitle="Use these URLs in IPTV clients (M3U + XMLTV EPG)."
+                    >
+                        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                            <div className="space-y-2">
+                                <p className="text-xs font-semibold text-gray-700">M3U URL</p>
+                                <TextArea value={m3uUrl || "Login to generate the M3U URL..."} readOnly/>
+                                <Button onClick={onCopyM3u} disabled={!m3uUrl}>
+                                    Copy M3U URL
+                                </Button>
+                            </div>
+
+                            <div className="space-y-2">
+                                <p className="text-xs font-semibold text-gray-700">EPG URL</p>
+                                <TextArea value={epgUrl || "Login to generate the EPG URL..."} readOnly/>
+                                <Button onClick={onCopyEpg} disabled={!epgUrl}>
+                                    Copy EPG URL
+                                </Button>
                             </div>
                         </div>
                     </Card>
@@ -257,7 +307,9 @@ export default function ConfigurePage() {
                         associated with Paramount Global or its subsidiaries. It is intended for
                         personal use only. Users are responsible for ensuring they have a valid
                         subscription to the service. We do not host or provide any media content;
-                        this tool simply acts as a proxy for legitimate API requests.
+                        this tool simply acts as a proxy for legitimate API requests. As described in Paramount's terms and conditions,
+                        using proxy services is considered abuse. Use of this software is at the user's sole discretion,
+                        and we assume no responsibility for its use or any repercussions on the account used.
                     </p>
                     <div className="mt-2">
                         <a href="https://github.com/RioNoir/paramount-stremio"

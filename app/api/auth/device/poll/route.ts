@@ -27,6 +27,8 @@ export async function POST(req: Request) {
 
     const base = process.env.BASE_URL || url.origin || "http://localhost:3000";
     const manifestUrl = `${base}/api/stremio/${encodeURIComponent(key)}/manifest.json`;
+    const m3uUrl = `${base}/api/iptv/${encodeURIComponent(key)}/playlist.m3u`;
+    const epgUrl = `${base}/api/iptv/${encodeURIComponent(key)}/epg.xml`;
 
-    return withCors(Response.json({ ok: true, manifestUrl }));
+    return withCors(Response.json({ ok: true, manifestUrl, m3uUrl, epgUrl }));
 }

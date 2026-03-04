@@ -25,6 +25,7 @@ This is an add-on that allows you to view the contents of your Paramount+ accoun
 - Automatically generated catalogs/meta, always up to date (currently only live TV and sports)
 - Auto-proxed streams directly from the addon (currently only HLS streams work)
 - Multiple accounts with a single instance of the addon
+- IPTV export: M3U playlist + XMLTV EPG
 
 ## 💾 Installation
 
@@ -235,4 +236,3 @@ Intellectual Property: All trademarks, service names, and logos (e.g., Paramount
 ## 📄 License
 
 This project is distributed under the MIT license. See the `LICENSE` file for more details.
-
