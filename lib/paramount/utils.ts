@@ -4,7 +4,7 @@ import {httpClient} from "@/lib/http/client";
 export const PPLUS_BASE_URL = "https://www.paramountplus.com";
 export const PPLUS_AT_TOKEN_US = "ABCVvU1Pv0BRR9aWYFLAm+m8bcIJXm7a9GYpMwXFtDuq1P5ARAg6o60yilK8oQ2Eaxc=";
 export const PPLUS_LOCALE_US = "en-us";
-export const PPLUS_APP_VERSION = "16.6.1";
+export const PPLUS_APP_VERSION = "16.10.0";
 export const PPLUS_IMG_BASE = "https://wwwimage-us.pplusstatic.com/base/";
 
 // let PPLUS_HEADER_CACHED = global as any;

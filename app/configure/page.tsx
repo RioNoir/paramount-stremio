@@ -263,32 +263,6 @@ export default function ConfigurePage() {
                     </div>
                 </div>
 
-
-                <div className="grid grid-cols-1 gap-4 lg:grid-cols-1 mt-4">
-                    <Card
-                        title="Optional → Install to your IPTV client"
-                        subtitle="Use these URLs in IPTV clients (M3U + XMLTV EPG)."
-                    >
-                        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                            <div className="space-y-2">
-                                <p className="text-xs font-semibold text-gray-700">M3U URL</p>
-                                <TextArea value={m3uUrl || "Login to generate the M3U URL..."} readOnly/>
-                                <Button onClick={onCopyM3u} disabled={!m3uUrl}>
-                                    Copy M3U URL
-                                </Button>
-                            </div>
-
-                            <div className="space-y-2">
-                                <p className="text-xs font-semibold text-gray-700">EPG URL</p>
-                                <TextArea value={epgUrl || "Login to generate the EPG URL..."} readOnly/>
-                                <Button onClick={onCopyEpg} disabled={!epgUrl}>
-                                    Copy EPG URL
-                                </Button>
-                            </div>
-                        </div>
-                    </Card>
-                </div>
-
                 {toast ? (
                     <div
                         className="fixed bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-black px-4 py-2 text-sm text-white shadow-lg">
