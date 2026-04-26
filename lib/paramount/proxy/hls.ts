@@ -21,7 +21,7 @@ export function splitMasterPlaylist(masterM3u8: string, baseUrl: string = "") {
     }
 
     variants.sort((a, b) => b.height - a.height || b.bandwidth - a.bandwidth);
-    const finalVariants = variants.map((v, index, self) => {
+    const finalVariants = variants.map((v, _index, self) => {
         const sameHeight = self.filter(x => x.height === v.height);
         let label = `${v.height}p`;
 
@@ -187,6 +187,7 @@ export function rewriteM3U8(params: {
         if (!line) continue;
 
         if (line.startsWith("#EXT")) {
+            if (process.env.STRIP_DISCONTINUITY === "true" && line.startsWith("#EXT-X-DISCONTINUITY")) continue;
             const m = line.match(/URI=["']([^"']+)["']/);
             if (m) {
                 const absKey = new URL(m[1], upstreamUrl).toString();
