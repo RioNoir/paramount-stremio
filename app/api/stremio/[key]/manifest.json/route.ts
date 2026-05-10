@@ -26,8 +26,16 @@ export async function GET(_req: Request, ctx: { params: Promise<{ key: string }>
             type: "tv",
             id: "pplus_sports",
             name: "Paramount+ Sports",
-            extra: [{ name: "search" }, { name: "skip" }],
-        }
+            extra: [
+                {
+                    name: "genre",
+                    isRequired: false,
+                    options: ["Live", "Upcoming"],
+                },
+                { name: "search" },
+                { name: "skip" },
+            ],
+        },
     ];
 
     const url = process.env.BASE_URL || _req.url || "http://localhost:3000";

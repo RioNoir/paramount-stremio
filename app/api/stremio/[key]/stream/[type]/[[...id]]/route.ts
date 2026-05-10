@@ -14,7 +14,7 @@ import { resolveLiveStream } from "@/lib/paramount/types/live";
 import { wrapUrlWithMediaFlow } from "@/lib/mediaflowproxy/mediaflowproxy";
 import { shorten } from "@/lib/http/sid";
 import {httpClient} from "@/lib/http/client";
-import {splitMasterPlaylist} from "@/lib/paramount/proxy/hls"
+import {splitMasterPlaylist, splitAudioTracks} from "@/lib/paramount/proxy/hls"
 
 export const runtime = "nodejs";
 export const preferredRegion = "iad1";
@@ -70,38 +70,72 @@ export async function GET(
 
         if(streamingUrl.toString().includes('.m3u8')) {
 
-            //HLS internal proxy stream
-            const internal = new URL(`/api/stremio/${encodeURIComponent(key)}/proxy/hls`, base.origin);
-            internal.searchParams.set("u", Buffer.from(streamingUrl.toString()).toString('base64url'));
-            internal.searchParams.set("t", Buffer.from(lsSession.toString()).toString('base64url'));
-            if (internal) {
-                streams.push({
-                    name: "Paramount+",
-                    title: `${streamingTitle} \n🎞 HLS (Auto quality)`,
-                    url: internal.toString(),
-                    isLive: true,
-                    notWebReady: false
-                });
-            }
+            // Base proxy URL (immutable reference — clone per variante)
+            const proxyBase = new URL(`/api/stremio/${encodeURIComponent(key)}/proxy/hls`, base.origin);
+            proxyBase.searchParams.set("u", Buffer.from(streamingUrl.toString()).toString('base64url'));
+            proxyBase.searchParams.set("t", Buffer.from(lsSession.toString()).toString('base64url'));
+
+            // Auto quality stream
+            streams.push({
+                name: "Paramount+",
+                title: `${streamingTitle} \n🗣️ Auto \n🎞 HLS (Auto quality)`,
+                url: proxyBase.toString(),
+                isLive: true,
+                notWebReady: false
+            });
 
             headers['accept'] = "application/vnd.apple.mpegurl, application/x-mpegURL, */*";
             const {status, data} = await httpClient.get(streamingUrl.toString(), {
                 headers: headers
             });
             if(status == 200) {
-                const playlists = splitMasterPlaylist(data.toString());
-                playlists.forEach(stream => {
-                    internal.searchParams.set("b", stream.bandwidth);
-                    if (internal) {
+                const masterM3u8 = data.toString();
+                const audioTracks = splitAudioTracks(masterM3u8);
+                const multiLang = audioTracks.length >= 2;
+
+                // Per-language Auto quality streams
+                if (multiLang) {
+                    for (const track of audioTracks) {
+                        const lUrl = new URL(proxyBase.toString());
+                        lUrl.searchParams.set("lang", track.language);
                         streams.push({
                             name: "Paramount+",
-                            title: `${streamingTitle} \n🎞 HLS (${stream.quality})`,
-                            url: internal.toString(),
+                            title: `${streamingTitle} \n🗣️ ${track.name} \n🎞 HLS (Auto quality)`,
+                            url: lUrl.toString(),
                             isLive: true,
                             notWebReady: false
                         });
                     }
-                });
+                }
+
+                // Quality-specific streams
+                for (const variant of splitMasterPlaylist(masterM3u8)) {
+                    const qUrl = new URL(proxyBase.toString());
+                    qUrl.searchParams.set("b", String(variant.bandwidth));
+                    streams.push({
+                        name: "Paramount+",
+                        title: `${streamingTitle} \n🗣️ Auto \n🎞 HLS (${variant.quality})`,
+                        url: qUrl.toString(),
+                        isLive: true,
+                        notWebReady: false
+                    });
+
+                    // Per-language quality streams
+                    if (multiLang) {
+                        for (const track of audioTracks) {
+                            const lUrl = new URL(proxyBase.toString());
+                            lUrl.searchParams.set("b", String(variant.bandwidth));
+                            lUrl.searchParams.set("lang", track.language);
+                            streams.push({
+                                name: "Paramount+",
+                                title: `${streamingTitle} \n🗣️ ${track.name} \n🎞 HLS (${variant.quality})`,
+                                url: lUrl.toString(),
+                                isLive: true,
+                                notWebReady: false
+                            });
+                        }
+                    }
+                }
             }
 
             if (process.env.MFP_URL) {

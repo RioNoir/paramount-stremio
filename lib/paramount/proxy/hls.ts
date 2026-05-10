@@ -1,4 +1,62 @@
 
+export interface AudioTrack {
+    language: string;
+    name: string;
+    groupId: string;
+    isDefault: boolean;
+}
+
+export function splitAudioTracks(masterM3u8: string): AudioTrack[] {
+    const tracks: AudioTrack[] = [];
+    const seen = new Set<string>();
+
+    for (const rawLine of masterM3u8.split("\n")) {
+        const line = rawLine.trim();
+        if (!line.startsWith("#EXT-X-MEDIA:")) continue;
+
+        const typeMatch = line.match(/TYPE=([A-Z-]+)/);
+        if (typeMatch?.[1] !== "AUDIO") continue;
+
+        const lang = line.match(/LANGUAGE="([^"]+)"/)?.[1] ?? "und";
+        if (seen.has(lang)) continue;
+        seen.add(lang);
+
+        tracks.push({
+            language: lang,
+            name: line.match(/NAME="([^"]+)"/)?.[1] ?? lang,
+            groupId: line.match(/GROUP-ID="([^"]+)"/)?.[1] ?? "",
+            isDefault: line.match(/DEFAULT=(YES|NO)/)?.[1] === "YES",
+        });
+    }
+
+    return tracks;
+}
+
+export function filterMasterByLanguage(masterM3u8: string, targetLang: string): string {
+    const lines = masterM3u8.split("\n");
+    const out: string[] = [];
+
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith("#EXT-X-MEDIA:") && trimmed.includes("TYPE=AUDIO")) {
+            const lang = trimmed.match(/LANGUAGE="([^"]+)"/)?.[1] ?? "";
+            if (lang !== targetLang) continue; // rimuove le altre lingue
+            let modified = trimmed;
+            if (modified.match(/DEFAULT=(YES|NO)/)) {
+                modified = modified.replace(/DEFAULT=(YES|NO)/, "DEFAULT=YES");
+            }
+            if (modified.match(/AUTOSELECT=(YES|NO)/)) {
+                modified = modified.replace(/AUTOSELECT=(YES|NO)/, "AUTOSELECT=YES");
+            }
+            out.push(modified);
+        } else {
+            out.push(line);
+        }
+    }
+
+    return out.join("\n");
+}
+
 export function splitMasterPlaylist(masterM3u8: string, baseUrl: string = "") {
     const lines = masterM3u8.split("\n");
     const variants: any[] = [];
@@ -72,18 +130,30 @@ export function filterMasterByClosestBandwidth(masterM3u8: string, targetBandwid
         return Math.abs(curr.bw - targetBandwidth) < Math.abs(prev.bw - targetBandwidth) ? curr : prev;
     });
 
-    let output = "";
+    // Keep only the audio/subtitle groups actually referenced by the selected variant
+    const referencedGroups = new Set<string>();
+    for (const m of closestVariant.info.matchAll(/(?:AUDIO|SUBTITLES|CLOSED-CAPTIONS)="([^"]+)"/g)) {
+        referencedGroups.add(m[1]);
+    }
+
     const headerTags = otherTags.filter(t => t.startsWith("#EXTM3U") || t.startsWith("#EXT-X-VERSION"));
-    const mediaTags = otherTags.filter(t => t.startsWith("#EXT-X-MEDIA"));
-    const globalTags = otherTags.filter(t => !t.startsWith("#EXTM3U") && !t.startsWith("#EXT-X-VERSION") && !t.startsWith("#EXT-X-MEDIA"));
+    const mediaTags = otherTags.filter(t => {
+        if (!t.startsWith("#EXT-X-MEDIA")) return false;
+        if (referencedGroups.size === 0) return true;
+        const gid = t.match(/GROUP-ID="([^"]+)"/)?.[1];
+        return !gid || referencedGroups.has(gid);
+    });
+    const globalTags = otherTags.filter(t =>
+        !t.startsWith("#EXTM3U") && !t.startsWith("#EXT-X-VERSION") && !t.startsWith("#EXT-X-MEDIA")
+    );
 
-    output += headerTags.join("\n") + "\n";
-    output += mediaTags.join("\n") + "\n";
-    output += globalTags.join("\n") + "\n";
+    const parts: string[] = [];
+    if (headerTags.length) parts.push(headerTags.join("\n"));
+    if (mediaTags.length) parts.push(mediaTags.join("\n"));
+    if (globalTags.length) parts.push(globalTags.join("\n"));
+    parts.push(`${closestVariant.info}\n${closestVariant.url}`);
 
-    output += `${closestVariant.info}\n${closestVariant.url}\n`;
-
-    return output;
+    return parts.join("\n") + "\n";
 }
 
 export function rewriteM3U8(params: {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {ParamountClient} from "@/lib/paramount/client";
 import {needsParamountAuth, buildCookieHeader, guessBaseOrigin, PPLUS_BASE_URL, PPLUS_HEADER} from "@/lib/paramount/utils";
 import {httpClient} from "@/lib/http/client";
-import {rewriteM3U8, filterMasterByClosestBandwidth} from "@/lib/paramount/proxy/hls";
+import {rewriteM3U8, filterMasterByClosestBandwidth, filterMasterByLanguage} from "@/lib/paramount/proxy/hls";
 
 export const runtime = "nodejs";
 export const preferredRegion = "iad1";
@@ -21,6 +21,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
     const u = req.nextUrl.searchParams.get("u");
     const t = req.nextUrl.searchParams.get("t");
     const b = req.nextUrl.searchParams.get("b") ?? null;
+    const lang = req.nextUrl.searchParams.get("lang") ?? null;
     if (!u || !t) return new NextResponse("Missing u/t", { status: 400 });
 
     let upstreamUrl: URL;
@@ -75,8 +76,11 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
         token: t
     });
 
-    if(b){
+    if (b) {
         rewritten = filterMasterByClosestBandwidth(rewritten, parseInt(b));
+    }
+    if (lang) {
+        rewritten = filterMasterByLanguage(rewritten, lang);
     }
 
     const outHeaders = new Headers({

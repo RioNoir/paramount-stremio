@@ -79,6 +79,9 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
 
     const outHeaders = copyRespHeaders(resHeaders);
     const pathname = upstreamUrl.pathname.toLowerCase();
+    const isMediaSegment = pathname.endsWith(".ts") || pathname.endsWith(".m4s")
+        || pathname.endsWith(".mp4") || pathname.endsWith(".m4a");
+
     if (pathname.endsWith(".ts")) {
         outHeaders.set("Content-Type", "video/mp2t");
     } else if (pathname.endsWith(".m4s") || pathname.endsWith(".mp4")) {
@@ -91,7 +94,12 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
     outHeaders.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
     outHeaders.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
     outHeaders.set("Access-Control-Expose-Headers", "Content-Length, Content-Range");
-    outHeaders.set("Cache-Control", "no-cache, no-store, max-age=0, must-revalidate");
+    // I segmenti HLS sono immutabili: un breve cache riduce i re-download durante i glitch
+    if (isMediaSegment) {
+        outHeaders.set("Cache-Control", "public, max-age=60, s-maxage=60");
+    } else {
+        outHeaders.set("Cache-Control", "no-cache, no-store, max-age=0, must-revalidate");
+    }
 
     if (method === "HEAD") {
         return new NextResponse(null, { status: status, headers: outHeaders });

@@ -11,9 +11,11 @@ function parseExtras(extra?: string[]) {
         if (i === -1) continue;
         out[decodeURIComponent(seg.slice(0, i))] = decodeURIComponent(seg.slice(i + 1));
     }
+    const rawGenre = out.genre ? out.genre.replace('.json', '') : undefined;
     return {
         search: out.search ? out.search.replace('.json', '') : "",
         skip: out.skip ? Number(out.skip.replace('.json', '')) : 0,
+        genre: rawGenre as "Live" | "Upcoming" | undefined,
     };
 }
 
@@ -29,11 +31,12 @@ export async function GET(
     const session = client.getSession();
     if (!session) return NextResponse.json({ metas: [] });
 
+    const parsed = parseExtras(extra);
     const metas = await getCatalogMetas({
         type,
         id,
         session,
-        extra: parseExtras(extra),
+        extra: parsed,
     });
 
     return NextResponse.json({ metas }, { headers: { "Access-Control-Allow-Origin": "*" } });

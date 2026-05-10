@@ -15,7 +15,7 @@ export async function getCatalogMetas(args: {
     type: string;
     id: string;
     session: ParamountSession;
-    extra?: { search?: string; skip?: number };
+    extra?: { search?: string; skip?: number; genre?: "Live" | "Upcoming" };
 }): Promise<StremioMeta[]> {
     let { type, id, session, extra } = args;
 
@@ -23,6 +23,7 @@ export async function getCatalogMetas(args: {
 
     const skip = extra?.skip ?? 0;
     const search = safeLower(extra?.search);
+    const genre = extra?.genre;
     const pageSize = 100;
 
     //TODO: movies and shows
@@ -41,8 +42,29 @@ export async function getCatalogMetas(args: {
 
     //Sport
     if (type === "tv" && id === "pplus_sports") {
-        const sportListings: any = await getSportListing(session, false);
-        const sportMetas = sportListings.map(mapSportListingToMeta).filter(Boolean) as StremioMeta[];
+        const sportListings: any[] = await getSportListing(session, false);
+
+        const now = Date.now();
+        const filteredByGenre = genre === "Live"
+            ? sportListings.filter((e) => {
+                const startMs = typeof e.startTimestamp === "number" ? e.startTimestamp
+                    : typeof e.streamStartTimestamp === "number" ? e.streamStartTimestamp : undefined;
+                const endMs = typeof e.endTimestamp === "number" ? e.endTimestamp
+                    : typeof e.streamEndTimestamp === "number" ? e.streamEndTimestamp : undefined;
+                if (e?.isListingLive === true) return true;
+                if (startMs && endMs && startMs <= now && now < endMs) return true;
+                return false;
+            })
+            : genre === "Upcoming"
+            ? sportListings.filter((e) => {
+                if (e?.isListingLive === true) return false;
+                const startMs = typeof e.startTimestamp === "number" ? e.startTimestamp
+                    : typeof e.streamStartTimestamp === "number" ? e.streamStartTimestamp : undefined;
+                return startMs !== undefined && startMs > now;
+            })
+            : sportListings;
+
+        const sportMetas = filteredByGenre.map(mapSportListingToMeta).filter(Boolean) as StremioMeta[];
 
         sportMetas.sort((a, b) => {
             return (a.releaseInfo ?? "").localeCompare(b.releaseInfo ?? "");
