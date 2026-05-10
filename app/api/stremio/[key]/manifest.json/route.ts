@@ -38,10 +38,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ key: string }>
         },
     ];
 
-    const url = process.env.BASE_URL || _req.url || "http://localhost:3000";
-    const base = new URL(url);
-    const logo = new URL(`/icon.png`, base.origin);
-    const background = new URL(`/fanart.png`, base.origin);
+    const baseUrl = process.env.BASE_URL?.replace(/\/$/, '') ?? new URL(_req.url).origin;
+    const logo = `${baseUrl}/icon.png`;
+    const background = `${baseUrl}/fanart.png`;
 
     const manifest = {
         id: "org.pplus.stremio",

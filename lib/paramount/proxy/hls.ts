@@ -168,7 +168,7 @@ export function rewriteM3U8(params: {
     const toProxy = (absUrl: string, route: string = "seg") => {
         const isManifest = absUrl.includes(".m3u8");
         const endpoint = isManifest ? "hls" : route;
-        const u = new URL(`/api/stremio/${key}/proxy/${endpoint}`, baseOrigin);
+        const u = new URL(`${baseOrigin}/api/stremio/${key}/proxy/${endpoint}`);
         u.searchParams.set("u", Buffer.from(absUrl.toString()).toString('base64url'));
         u.searchParams.set("t", token);
         return u.toString();

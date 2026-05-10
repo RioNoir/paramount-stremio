@@ -65,13 +65,12 @@ export async function GET(
 
     // Proxy playlist endpoint
     if(streamingUrl) {
-        const url = process.env.BASE_URL || req.url || "http://localhost:3000";
-        const base = new URL(url);
+        const baseUrl = process.env.BASE_URL?.replace(/\/$/, '') ?? new URL(req.url).origin;
 
         if(streamingUrl.toString().includes('.m3u8')) {
 
             // Base proxy URL (immutable reference — clone per variante)
-            const proxyBase = new URL(`/api/stremio/${encodeURIComponent(key)}/proxy/hls`, base.origin);
+            const proxyBase = new URL(`${baseUrl}/api/stremio/${encodeURIComponent(key)}/proxy/hls`);
             proxyBase.searchParams.set("u", Buffer.from(streamingUrl.toString()).toString('base64url'));
             proxyBase.searchParams.set("t", Buffer.from(lsSession.toString()).toString('base64url'));
 
@@ -160,8 +159,8 @@ export async function GET(
         }else if(streamingUrl.toString().includes('.mpd')){
             //MPD internal proxy stream
             const sid = shorten(key, streamingUrl.toString(), lsSession.toString(), lsUrl.toString());
-            const internal = new URL(`/api/proxy/${sid}/mpd`, base.origin);
-            const license = new URL(`/api/proxy/${sid}/license`, base.origin);
+            const internal = new URL(`${baseUrl}/api/proxy/${sid}/mpd`);
+            const license = new URL(`${baseUrl}/api/proxy/${sid}/license`);
 
             if (internal) {
                 streams.push({

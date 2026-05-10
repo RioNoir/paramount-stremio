@@ -103,9 +103,11 @@ export function copyRespHeaders(headers: Headers) {
     return out;
 }
 
-export function guessBaseOrigin(req: NextRequest) {
-    const baseUrl = process.env.BASE_URL || req.url || "http://localhost:3000";
-    return new URL(baseUrl).origin;
+export function guessBaseUrl(req: NextRequest) {
+    if (process.env.BASE_URL) {
+        return process.env.BASE_URL.replace(/\/$/, '');
+    }
+    return new URL(req.url).origin;
 }
 
 export function normImg(urlOrPath?: string | null): string | undefined {

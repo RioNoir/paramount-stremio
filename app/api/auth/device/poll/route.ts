@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     await client.setSession(session);
     const key = await client.getSessionKey();
 
-    const base = process.env.BASE_URL || url.origin || "http://localhost:3000";
+    const base = (process.env.BASE_URL?.replace(/\/$/, '') ?? url.origin) || "http://localhost:3000";
     const manifestUrl = `${base}/api/stremio/${encodeURIComponent(key)}/manifest.json`;
     const m3uUrl = `${base}/api/iptv/${encodeURIComponent(key)}/playlist.m3u`;
     const epgUrl = `${base}/api/iptv/${encodeURIComponent(key)}/epg.xml`;

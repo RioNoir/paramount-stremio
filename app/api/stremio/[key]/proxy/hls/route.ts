@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {ParamountClient} from "@/lib/paramount/client";
-import {needsParamountAuth, buildCookieHeader, guessBaseOrigin, PPLUS_BASE_URL, PPLUS_HEADER} from "@/lib/paramount/utils";
+import {needsParamountAuth, buildCookieHeader, guessBaseUrl, PPLUS_BASE_URL, PPLUS_HEADER} from "@/lib/paramount/utils";
 import {httpClient} from "@/lib/http/client";
 import {rewriteM3U8, filterMasterByClosestBandwidth, filterMasterByLanguage} from "@/lib/paramount/proxy/hls";
 
@@ -65,7 +65,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
         return new NextResponse(null, { status: status, headers: h });
     }
 
-    const baseOrigin = guessBaseOrigin(req);
+    const baseOrigin = guessBaseUrl(req);
 
     const text = data.toString();
     let rewritten = rewriteM3U8({
