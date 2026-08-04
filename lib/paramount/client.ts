@@ -374,10 +374,11 @@ export class ParamountClient {
         });
     }
 
-    async getVideoSection(showId: string): Promise<any | null> {
+    async getVideoSection(showId: string, config: string): Promise<any | null> {
         const data = await this.getJson<any>(
-            `/v2.0/androidphone/shows/${showId}/videos/configuration.json`,
+            `/v2.0/androidphone/shows/${showId}/videos/config/${config}.json`,
             {
+                platformType: "apps",
                 rows: 1,
                 begin: 0,
             }
@@ -392,7 +393,7 @@ export class ParamountClient {
 
     async getSeasons(showId: string): Promise<number[]> {
         const data = await this.getJson<any>(
-            `/v3.0/androidphone/shows/${showId}/video_available_season.json`
+            `/v3.0/androidphone/shows/${showId}/video/season/availability.json`
         );
 
         const list = data?.video_available_season?.itemList ?? [];
