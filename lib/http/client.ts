@@ -59,6 +59,16 @@ export class HttpClient {
         });
     }
 
+    public async getDirect(url: string, config: AxiosRequestConfig = {}) {
+        return this.baseRequest({
+            method: 'GET',
+            url: url,
+            httpAgent: undefined,
+            httpsAgent: undefined,
+            ...config
+        });
+    }
+
     public async post(url: string, body?: any, config: AxiosRequestConfig = {}) {
         return this.baseRequest({
             method: 'POST',

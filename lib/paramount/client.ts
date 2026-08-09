@@ -56,11 +56,13 @@ export class ParamountClient {
                 "Content-Type": "application/json",
                 "Accept": "application/json",
                 "User-Agent": userAgent,
-                "Origin": PPLUS_BASE_URL,
-                "Referer": PPLUS_BASE_URL,
                 ...(this.session?.cookies?.length ? { Cookie: this.session.cookies.map((c) => c.split(";")[0]).join("; ") } : {}),
             },
         });
+
+        if (status >= 400) {
+            console.error(`[PPLUS] GET ${apiPath} returned ${status}:`, JSON.stringify(json)?.slice(0, 300));
+        }
 
         if (debug) {
             console.log("[PPLUS] Status", status);
@@ -104,8 +106,6 @@ export class ParamountClient {
                     "Content-Type": "application/json",
                     "Accept": "application/json",
                     "User-Agent": userAgent,
-                    "Origin": PPLUS_BASE_URL,
-                    "Referer": PPLUS_BASE_URL,
                     ...(this.session?.cookies?.length ? { Cookie: this.session.cookies.map((c) => c.split(";")[0]).join("; ") } : {}),
             },
         });

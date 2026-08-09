@@ -112,8 +112,14 @@ export function guessBaseUrl(req: NextRequest) {
 
 export function normImg(urlOrPath?: string | null): string | undefined {
     if (!urlOrPath) return undefined;
-    if (urlOrPath.startsWith("http://") || urlOrPath.startsWith("https://")) return urlOrPath;
-    return new URL(urlOrPath.replace(/^\//, ""), PPLUS_IMG_BASE).toString();
+    const absolute = urlOrPath.startsWith("http://") || urlOrPath.startsWith("https://")
+        ? urlOrPath
+        : new URL(urlOrPath.replace(/^\//, ""), PPLUS_IMG_BASE).toString();
+
+    if (!absolute.startsWith(PPLUS_IMG_BASE)) return absolute;
+
+    const baseUrl = (process.env.BASE_URL ?? "").replace(/\/$/, "");
+    return `${baseUrl}/api/img?u=${encodeURIComponent(absolute)}`;
 }
 
 export function msToUtc(ms?: number): string | undefined {

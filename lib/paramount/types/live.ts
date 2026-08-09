@@ -44,16 +44,31 @@ export function mapLiveListingToMeta(e: any) {
     } as StremioMeta;
 }
 
-export async function getLiveListing(session: ParamountSession) : Promise<any> {
-    const client = new ParamountClient();
-    await client.setSession(session);
-    const data: any = await client.getLiveChannels();
+const LIVE_LISTING_CACHE_TTL = 30 * 1000;
+let liveListingCache: { data: any[]; expiresAt: number } | undefined;
 
-    const listings = data?.channels ??
-        data?.data?.channels ??
-        data?.data?.listings ??
-        data?.data?.data?.listings ??
-        [];
+export async function getLiveListing(session: ParamountSession) : Promise<any> {
+    let listings: any[];
+
+    if (liveListingCache && Date.now() < liveListingCache.expiresAt) {
+        listings = liveListingCache.data;
+    } else {
+        const client = new ParamountClient();
+        await client.setSession(session);
+        const data: any = await client.getLiveChannels();
+
+        listings = data?.channels ??
+            data?.data?.channels ??
+            data?.data?.listings ??
+            data?.data?.data?.listings ??
+            [];
+
+        if (listings.length === 0) {
+            console.warn("[live] empty listings, raw response:", JSON.stringify(data)?.slice(0, 500));
+        } else {
+            liveListingCache = { data: listings, expiresAt: Date.now() + LIVE_LISTING_CACHE_TTL };
+        }
+    }
 
     const mpdEnabled = process.env.MPD_ENABLED === "true";
     return listings.filter((l: any) => {

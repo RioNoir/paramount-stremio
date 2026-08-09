@@ -51,7 +51,14 @@ export function mapSportListingToMeta(e: any) {
     } as StremioMeta;
 }
 
+const SPORT_LISTING_CACHE_TTL = 30 * 1000;
+let sportListingCache: { data: any[]; expiresAt: number } | undefined;
+
 export async function getSportListing(session: ParamountSession, onlyLive: boolean) : Promise<any>{
+    if (sportListingCache && Date.now() < sportListingCache.expiresAt) {
+        return filterSportListing(sportListingCache.data, onlyLive);
+    }
+
     const client = new ParamountClient();
     await client.setSession(session);
     const data : any = await client.getSportsLiveUpcoming();
@@ -61,6 +68,17 @@ export async function getSportListing(session: ParamountSession, onlyLive: boole
         data?.data?.listings ??
         data?.data?.data?.listings ??
         [];
+
+    if (listings.length === 0) {
+        console.warn("[sports] empty listings, raw response:", JSON.stringify(data)?.slice(0, 500));
+    } else {
+        sportListingCache = { data: listings, expiresAt: Date.now() + SPORT_LISTING_CACHE_TTL };
+    }
+
+    return filterSportListing(listings, onlyLive);
+}
+
+function filterSportListing(listings: any[], onlyLive: boolean) {
 
     const now = Date.now();
     return listings.filter((e) => {
