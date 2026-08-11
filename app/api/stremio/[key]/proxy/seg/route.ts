@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {ParamountClient} from "@/lib/paramount/client";
-import {needsParamountAuth, buildCookieHeader, forwardHeaders, copyRespHeaders, PPLUS_BASE_URL, PPLUS_HEADER} from "@/lib/paramount/utils";
+import {needsParamountAuth, isAllowedUpstreamUrl, buildCookieHeader, forwardHeaders, copyRespHeaders, PPLUS_BASE_URL, PPLUS_HEADER} from "@/lib/paramount/utils";
 import {httpClient} from "@/lib/http/client";
 
 export const runtime = "nodejs";
@@ -32,6 +32,10 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
         upstreamToken = Buffer.from(t, 'base64url').toString('utf-8');
     } catch {
         return new NextResponse("Bad upstream url or token", { status: 400 });
+    }
+
+    if (!isAllowedUpstreamUrl(upstreamUrl)) {
+        return new NextResponse("Forbidden upstream host", { status: 403 });
     }
 
     const headers: Record<string, string> = {

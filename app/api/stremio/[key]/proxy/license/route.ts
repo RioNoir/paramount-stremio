@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { httpClient } from "@/lib/http/client";
 import {ParamountClient} from "@/lib/paramount/client";
-import {PPLUS_HEADER} from "@/lib/paramount/utils";
+import {PPLUS_HEADER, isAllowedUpstreamUrl} from "@/lib/paramount/utils";
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ key: string }> }) {
     const { key } = await ctx.params;
@@ -16,9 +16,19 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ key: strin
     if (!licenseUrl) return new NextResponse("Missing License URL", { status: 400 });
     const decodedUrl = Buffer.from(licenseUrl, 'base64url').toString('utf-8');
 
+    let url: URL;
+    try {
+        url = new URL(decodedUrl);
+    } catch {
+        return new NextResponse("Bad License URL", { status: 400 });
+    }
+
+    if (!isAllowedUpstreamUrl(url)) {
+        return new NextResponse("Forbidden upstream host", { status: 403 });
+    }
+
     const challenge = await req.arrayBuffer();
     const challengeBuffer = Buffer.from(challenge);
-    const url = new URL(decodedUrl);
 
     const userAgent = await PPLUS_HEADER();
     const {status: status, data: data} = await httpClient.post(url.toString(),

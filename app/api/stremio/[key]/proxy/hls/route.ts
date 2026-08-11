@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {ParamountClient} from "@/lib/paramount/client";
-import {needsParamountAuth, buildCookieHeader, guessBaseUrl, PPLUS_BASE_URL, PPLUS_HEADER} from "@/lib/paramount/utils";
+import {needsParamountAuth, isAllowedUpstreamUrl, buildCookieHeader, guessBaseUrl, PPLUS_BASE_URL, PPLUS_HEADER} from "@/lib/paramount/utils";
 import {httpClient} from "@/lib/http/client";
 import {rewriteM3U8, filterMasterByClosestBandwidth, filterMasterByLanguage} from "@/lib/paramount/proxy/hls";
 
@@ -31,6 +31,10 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ key: string }> 
         upstreamToken = Buffer.from(t, 'base64url').toString('utf-8');
     } catch {
         return new NextResponse("Bad upstream url or token", { status: 400 });
+    }
+
+    if (!isAllowedUpstreamUrl(upstreamUrl)) {
+        return new NextResponse("Forbidden upstream host", { status: 403 });
     }
 
     const headers: Record<string, string> = {

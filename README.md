@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/RioNoir/paramount-stremio/refs/heads/main/public/icon.png" alt="PPlus" style="margin: 20px 0; width: 400px; height: auto;">
+  <img src="public/icon.png" alt="PPlus" style="margin: 20px 0; width: 400px; height: auto;">
 </p>
 
 <p align="center">
@@ -16,7 +16,7 @@
 This is an add-on that allows you to view the contents of your Paramount+ account directly within Stremio. To use it, you need to log in with your account. <ins>Currently, only US accounts are supported.</ins>
 
 <a href="https://buymeacoffee.com/rionoir" target="_blank">
-  <img alt="Support GitCharm" src="public/support-banner.png" width="100%">
+  <img alt="Support" src="public/support-banner.png" width="100%">
 </a>
 
 ## ✨ Features

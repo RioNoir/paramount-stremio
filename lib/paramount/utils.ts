@@ -42,10 +42,39 @@ export function stripJsonSuffix(s: string) {
     return s.endsWith(".json") ? s.slice(0, -5) : s;
 }
 
-export function needsParamountAuth(hostname: string) {
+// Domini che richiedono le credenziali di sessione Paramount+ (cookie/bearer)
+const PPLUS_AUTH_HOSTS = [
+    "cbsi.live.ott.irdeto.com",
+    "paramountplus.com",
+    "cbsivideo.com",
+];
+
+// Domini verso cui e' lecito instradare le richieste (manifest/segmenti/licenze),
+// anche se non ricevono le credenziali Paramount+ (es. Google DAI per i live con ad insertion)
+const PPLUS_UPSTREAM_ALLOWED_HOSTS = [
+    ...PPLUS_AUTH_HOSTS,
+    "google.com",
+    "googlevideo.com",
+    "googleapis.com",
+    "googlesyndication.com",
+    "doubleclick.net",
+];
+
+function hostMatches(hostname: string, domains: string[]) {
     const h = hostname.toLowerCase();
-    //return h.endsWith("cbsi.live.ott.irdeto.com") || h.endsWith("paramountplus.com") || h.endsWith("cbsivideo.com");
-    return !h.endsWith("google.com");
+    return domains.some((domain) => h === domain || h.endsWith(`.${domain}`));
+}
+
+export function isAllowedUpstreamHost(hostname: string) {
+    return hostMatches(hostname, PPLUS_UPSTREAM_ALLOWED_HOSTS);
+}
+
+export function isAllowedUpstreamUrl(url: URL) {
+    return (url.protocol === "https:" || url.protocol === "http:") && isAllowedUpstreamHost(url.hostname);
+}
+
+export function needsParamountAuth(hostname: string) {
+    return hostMatches(hostname, PPLUS_AUTH_HOSTS);
 }
 
 export function buildCookieHeader(cookies: string[] | undefined) {
