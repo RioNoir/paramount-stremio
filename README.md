@@ -1,11 +1,7 @@
 <p align="center">
   <img src="https://raw.githubusercontent.com/RioNoir/paramount-stremio/refs/heads/main/public/icon.png" alt="PPlus" style="margin: 20px 0; width: 400px; height: auto;">
 </p>
-<p align="center">
-  <a href="https://www.buymeacoffee.com/rionoir"><img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="BuyMeACoffee" style="margin: 20px 0; width: 95px; height: auto;"></a>
-  <img alt="GitHub forks" src="https://img.shields.io/github/forks/RioNoir/paramount-stremio">
-  <img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/RioNoir/paramount-stremio">
-</p>
+
 <p align="center">
   <img alt="Node" src="https://img.shields.io/badge/Node-20+-orange">
   <img alt="Docker" src="https://img.shields.io/badge/Docker-Ready-blue.svg">
@@ -19,13 +15,16 @@
 
 This is an add-on that allows you to view the contents of your Paramount+ account directly within Stremio. To use it, you need to log in with your account. <ins>Currently, only US accounts are supported.</ins>
 
+<a href="https://buymeacoffee.com/rionoir" target="_blank">
+  <img alt="Support GitCharm" src="public/support-banner.png" width="100%">
+</a>
+
 ## ✨ Features
 
 - Account login with Device Code (like TV)
 - Automatically generated catalogs/meta, always up to date (currently only live TV and sports)
 - Auto-proxed streams directly from the addon (currently only HLS streams work)
 - Multiple accounts with a single instance of the addon
-- IPTV export: M3U playlist + XMLTV EPG
 
 ## 💥 Known issues
 
@@ -89,7 +88,7 @@ The following tools are required for docker installation: [git](https://git-scm.
 docker build -t paramount-stremio https://github.com/RioNoir/paramount-stremio.git#main
 
 #Start addon
-docker run --name Paramount-Stremio -e BASE_URL=http://localhost:7850 -e KEY_SECRET=[random-key] -e TIMEZONE=Europe/Rome -p 7850:7850 -d paramount-stremio
+docker run --name Paramount-Stremio -e BASE_URL=http://localhost:7850 -e KEY_SECRET=[random-key] -p 7850:7850 -d paramount-stremio
 ```
 Addon web ui will be available at: `http://localhost:7850`
 
@@ -128,7 +127,6 @@ You can configure or set the following environment variables in an `.env` file. 
 | `PORT`       | `7850`                                                       | NO       | The port of the addon.                                                                                               |
 | `KEY_SECRET` | `<random-key>`                                               | YES      | Randomly generated key to encrypt the login session. At least 20 characters recommended.                                 |
 | `TIMEZONE`   | `America/New_York`                                           | NO       | Time zone used to format dates.                                                                                          |
-| `FORCE_HQ`   | `false`                                                      | NO       | Set to `true` to force maximum streaming quality, useful in some players.                                                |
 | `HTTP_PROXY` | `https://<username>:<password>@us8682.<vpn-provider>.com:89` | NO       | HTTP/HTTPS/SOCK5 Proxy, all HTTP calls from addon will be made using this. Currently, only one proxy is supported.       |
 | `MFP_URL`    | `http://localhost:8888`                                      | NO       | URL of your [MediaFlow Proxy](https://github.com/mhdzumair/mediaflow-proxy) instance.                                    |
 | `MFP_PASS`   | `<your-password>`                                            | NO       | Password of your [MediaFlow Proxy](https://github.com/mhdzumair/mediaflow-proxy) instance.                               |
