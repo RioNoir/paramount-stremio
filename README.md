@@ -15,7 +15,7 @@
 
 This is an add-on that allows you to view the contents of your Paramount+ account directly within Stremio. To use it, you need to log in with your account. <ins>Currently, only US accounts are supported.</ins>
 
-<a href="https://buymeacoffee.com/rionoir" target="_blank">
+<a href="https://ko-fi.com/rionoir" target="_blank">
   <img alt="Support" src="public/support-banner.png" width="100%">
 </a>
 
